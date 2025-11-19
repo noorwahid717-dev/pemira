@@ -81,20 +81,26 @@ pemira/
 │   │   └── ...
 │   │
 │   ├── pages/              # Page components
-│   │   ├── LoginMahasiswa.jsx
-│   │   ├── DashboardPemilih.jsx
-│   │   ├── DaftarKandidat.jsx
-│   │   ├── VotingOnline.jsx
-│   │   ├── VotingTPS.jsx        # 🆕 TPS Intro
-│   │   ├── TPSScanner.jsx       # 🆕 QR Scanner
-│   │   ├── TPSValidation.jsx    # 🆕 Validation
-│   │   ├── TPSVoting.jsx        # 🆕 Voting TPS
-│   │   └── TPSSuccess.jsx       # 🆕 Success Page
+│   │   ├── LoginMahasiswa.tsx
+│   │   ├── DashboardPemilih.tsx
+│   │   ├── DaftarKandidat.tsx
+│   │   ├── DetailKandidat.tsx
+│   │   ├── LandingPage.tsx      # 🆕 Landing layout extracted
+│   │   ├── VotingOnline.tsx
+│   │   ├── VotingTPS.tsx        # 🆕 TPS Intro
+│   │   ├── TPSScanner.tsx       # 🆕 QR Scanner
+│   │   ├── TPSValidation.tsx    # 🆕 Validation
+│   │   ├── TPSVoting.tsx        # 🆕 Voting TPS
+│   │   └── TPSSuccess.tsx       # 🆕 Success Page
 │   │
 │   ├── styles/             # CSS files
-│   ├── utils/              # Utility functions
-│   ├── App.jsx            # Main app router
-│   └── main.jsx           # Entry point
+│   ├── hooks/              # 🆕 Typed hooks (useVotingSession, etc.)
+│   ├── data/               # 🆕 Mock/static datasets
+│   ├── types/              # 🆕 Domain type definitions
+│   ├── router/            # 🆕 Centralised routing config
+│   │   └── routes.ts
+│   ├── App.tsx            # Root view selector
+│   └── main.tsx           # Entry point
 │
 ├── public/                 # Static assets
 ├── TPS_VOTING_GUIDE.md    # 📘 TPS Voting Guide
@@ -128,7 +134,8 @@ pemira/
 - **Build Tool**: Vite 7
 - **Styling**: CSS (Custom)
 - **QR Scanner**: @zxing/library
-- **State Management**: React Hooks + SessionStorage
+- **Routing**: React Router DOM 7
+- **State Management**: React Hooks + SessionStorage (`useVotingSession`)
 
 ---
 
@@ -174,7 +181,29 @@ pnpm run preview
 
 # Lint code
 pnpm run lint
+
+# Run unit tests
+pnpm run test
 ```
+
+---
+
+## 🧭 TypeScript & Refactor Plan (Tahap 1)
+
+- ✅ TypeScript toolchain aktif (`tsconfig.*`, `vite.config.ts`, ESLint) dengan mode `allowJs` sehingga migrasi komponen dapat bertahap.
+- ✅ Routing dipusatkan pada `src/router/routes.ts` agar penambahan halaman cukup melalui konfigurasi.
+- ✅ Layout landing diekstrak ke `pages/LandingPage.tsx`, menjadikan `App.tsx` fokus pada pemilihan view.
+- ✅ React Router DOM meng-hydrate `appRoutes`, jadi tidak ada lagi switch manual berbasis `window.location`.
+- ✅ Hook `useVotingSession` + domain types (`src/types/voting.ts`) menyatukan akses state TPS/online.
+- ✅ Mock data (`src/data/mockCandidates.ts`, `src/data/mockVoters.ts`) dipakai lintas halaman, jadi tidak ada lagi hard-coded kandidat/sesi tersebar.
+- ✅ ProtectedRoute/PublicOnlyRoute memastikan hanya rute yang berhak yang dapat mengakses dashboard/tps, sedangkan login/demo redirect jika sesi sudah aktif.
+
+### Tahap Lanjutan yang Disarankan
+1. Migrasikan sisa `.jsx` (halaman tutorial/admin) ke `.tsx` lalu sambungkan dengan tipe/domain bersama.
+2. Gantikan data inline lain (mis. pengumuman, riwayat TPS) dengan adapter mock/API agar transisi ke backend makin mudah.
+3. Tambahkan pengujian router (mis. menggunakan Vitest + Testing Library) untuk memastikan Protected/Public routes bekerja sesuai harapan.
+4. Ekstrak hooks tambahan (`useVotingFlow`, `useScanner`) supaya state TPS/online semakin modular dan mudah diuji.
+5. Tambah langkah CI untuk `pnpm exec tsc --noEmit` dan `pnpm run lint` supaya refaktor besar terjaga kualitasnya.
 
 ---
 

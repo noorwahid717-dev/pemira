@@ -9,11 +9,11 @@ Semua fitur Voting via TPS telah berhasil diimplementasikan dengan lengkap!
 ## 📦 Files Created
 
 ### Pages (5 files)
-1. ✅ `src/pages/VotingTPS.jsx` - Halaman intro & penjelasan TPS
-2. ✅ `src/pages/TPSScanner.jsx` - Scanner QR dengan kamera
-3. ✅ `src/pages/TPSValidation.jsx` - Validasi QR & hak suara
-4. ✅ `src/pages/TPSVoting.jsx` - Halaman voting (step 1 & 2)
-5. ✅ `src/pages/TPSSuccess.jsx` - Halaman sukses voting
+1. ✅ `src/pages/VotingTPS.tsx` - Halaman intro & penjelasan TPS
+2. ✅ `src/pages/TPSScanner.tsx` - Scanner QR dengan kamera
+3. ✅ `src/pages/TPSValidation.tsx` - Validasi QR & hak suara
+4. ✅ `src/pages/TPSVoting.tsx` - Halaman voting (step 1 & 2)
+5. ✅ `src/pages/TPSSuccess.tsx` - Halaman sukses voting
 
 ### Styles (5 files)
 1. ✅ `src/styles/VotingTPS.css` - Style untuk intro page
@@ -22,8 +22,10 @@ Semua fitur Voting via TPS telah berhasil diimplementasikan dengan lengkap!
 4. ✅ `src/styles/TPSVoting.css` - Style untuk voting
 5. ✅ `src/styles/TPSSuccess.css` - Style untuk success page
 
-### Utils
-1. ✅ `src/utils/navigation.js` - Helper untuk navigasi
+### Shared Modules
+1. ✅ `src/hooks/useVotingSession.ts` - Hook session pemilih bertipe
+2. ✅ `src/types/voting.ts` - Definisi domain (Candidate, VoterSession, dsb.)
+3. ✅ `src/data/mockCandidates.ts` - Mock kandidat terpusat untuk TPS & online voting
 
 ### Documentation
 1. ✅ `TPS_VOTING_GUIDE.md` - Panduan lengkap fitur TPS
@@ -119,7 +121,8 @@ Semua fitur Voting via TPS telah berhasil diimplementasikan dengan lengkap!
 ### Dependencies Added
 ```json
 {
-  "@zxing/library": "^0.21.3"  // QR Scanner
+  "@zxing/library": "^0.21.3",
+  "react-router-dom": "^7.9.6"
 }
 ```
 
@@ -128,14 +131,14 @@ Semua fitur Voting via TPS telah berhasil diimplementasikan dengan lengkap!
 - ✅ Consistent dengan design system
 
 ### State Management
-- ✅ SessionStorage untuk user data
-- ✅ SessionStorage untuk QR data
+- ✅ SessionStorage untuk user & vote data
+- ✅ `useVotingSession` hook agar akses state pemilih konsisten
 - ✅ React hooks (useState, useEffect)
 
 ### Navigation
-- ✅ Custom navigation utility
-- ✅ History API integration
-- ✅ Proper back button handling
+- ✅ `react-router-dom` (BrowserRouter + useNavigate)
+- ✅ Data-driven `appRoutes` sehingga route TPS & online berbagi konfigurasi
+- ✅ History API handling by router (back/forward kompatibel)
 
 ---
 
