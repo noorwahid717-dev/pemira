@@ -11,6 +11,11 @@ import DemoAccounts from './pages/DemoAccounts'
 import DaftarKandidat from './pages/DaftarKandidat'
 import DetailKandidat from './pages/DetailKandidat'
 import VotingOnline from './pages/VotingOnline'
+import VotingTPS from './pages/VotingTPS'
+import TPSScanner from './pages/TPSScanner'
+import TPSValidation from './pages/TPSValidation'
+import TPSVoting from './pages/TPSVoting'
+import TPSSuccess from './pages/TPSSuccess'
 import './App.css'
 
 function App() {
@@ -38,6 +43,26 @@ function App() {
 
   if (currentPath === '/voting') {
     return <VotingOnline />;
+  }
+
+  if (currentPath === '/voting-tps') {
+    return <VotingTPS />;
+  }
+
+  if (currentPath === '/voting-tps/scanner') {
+    return <TPSScanner />;
+  }
+
+  if (currentPath === '/voting-tps/validate') {
+    return <TPSValidation />;
+  }
+
+  if (currentPath === '/voting-tps/vote') {
+    return <TPSVoting />;
+  }
+
+  if (currentPath === '/voting-tps/success') {
+    return <TPSSuccess />;
   }
 
   return (

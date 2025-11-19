@@ -53,10 +53,7 @@ export default function DashboardPemilih() {
 
   const handleGenerateQR = () => {
     if (votingStatus !== 'open') return;
-    setQrGenerated(true);
-    alert('QR Hak Suara berhasil digenerate!');
-    // Redirect ke halaman QR
-    // window.location.href = '/qr-hak-suara';
+    window.location.href = '/voting-tps';
   };
 
   const handleLogout = () => {
