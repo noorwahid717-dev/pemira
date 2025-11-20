@@ -404,6 +404,12 @@
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.1);
 }
 
+.method-card.method-disabled {
+  opacity: 0.7;
+  border-color: #e2e8f0;
+  box-shadow: none;
+}
+
 .method-icon {
   font-size: 3rem;
 }
@@ -528,6 +534,12 @@
 /* Button Utilities */
 .btn-block {
   width: 100%;
+}
+
+.error-text-small {
+  color: #e53e3e;
+  margin: 0 0 0.25rem 0;
+  font-size: 0.9rem;
 }
 
 /* Responsive */

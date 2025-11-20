@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { mockCandidates } from '../data/mockCandidates'
-import { dashboardAnnouncements, pemiraInfo } from '../data/dashboard'
 import { useVotingSession } from '../hooks/useVotingSession'
-import type { VotingRecord, VotingStatus } from '../types/voting'
+import { fetchPublicCandidates } from '../services/publicCandidates'
+import { fetchCurrentElection, type PublicElection } from '../services/publicElection'
+import { fetchVoterStatus, type VoterMeStatus } from '../services/voterStatus'
+import type { Candidate, VotingStatus } from '../types/voting'
 import '../styles/DashboardPemilih.css'
 
 type BannerContent = {
@@ -13,84 +15,199 @@ type BannerContent = {
   subtitle: string
   description?: string
   showCTA: boolean
-  ctaText?: string
-  ctaAction?: () => void
 }
 
-type VoteSummary = {
-  waktu: string
-  token: string
+const methodLabelMap: Record<string, string> = {
+  ONLINE: 'Voting Online',
+  TPS: 'Voting TPS',
+  NONE: 'Belum memilih',
 }
 
-const fallbackVoteSummary: VoteSummary = {
-  waktu: '14 Juni 2024 — 10:24 WIB',
-  token: 'x8e3-a91c-d18f',
+const formatDateRange = (start?: string | null, end?: string | null) => {
+  if (!start && !end) return 'Jadwal voting belum diumumkan'
+  const dateStart = start ? new Date(start) : null
+  const dateEnd = end ? new Date(end) : null
+  const format = (d: Date) => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+  if (dateStart && dateEnd) return `${format(dateStart)} – ${format(dateEnd)}`
+  if (dateStart) return `${format(dateStart)} dst`
+  if (dateEnd) return `Sampai ${format(dateEnd)}`
+  return 'Jadwal voting belum diumumkan'
 }
 
-const pemiraStats = {
-  ...pemiraInfo,
-  totalKandidat: mockCandidates.length,
-}
-
-const formatVoteTime = (record: VotingRecord) => {
-  const date = new Date(record.votedAt)
-  return date.toLocaleString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-const readStoredVoteData = (): VoteSummary | null => {
-  const raw = window.sessionStorage.getItem('voteData')
-  if (!raw) return null
-  try {
-    const voteData = JSON.parse(raw) as VotingRecord
-    return {
-      waktu: formatVoteTime(voteData),
-      token: voteData.token,
-    }
-  } catch {
-    return null
-  }
+const formatDateTime = (value?: string | null) => {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })
 }
 
 const DashboardPemilih = (): JSX.Element => {
   const navigate = useNavigate()
   const { session, mahasiswa, updateSession, clearSession } = useVotingSession()
-  const [hasVoted, setHasVoted] = useState(session?.hasVoted ?? false)
-  const [votingStatus, setVotingStatus] = useState<VotingStatus>(session?.votingStatus ?? 'open')
-  const [qrGenerated, setQrGenerated] = useState(false)
+
+  const [election, setElection] = useState<PublicElection | null>(null)
+  const [meStatus, setMeStatus] = useState<VoterMeStatus | null>(null)
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [statusError, setStatusError] = useState<string | null>(null)
+
+  const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates)
+  const [candidatesError, setCandidatesError] = useState<string | null>(null)
+
   const [showDropdown, setShowDropdown] = useState(false)
 
   useEffect(() => {
     if (!session) return
-    setHasVoted(session.hasVoted)
-    setVotingStatus(session.votingStatus)
-  }, [session])
+    const controller = new AbortController()
+    const loadStatus = async () => {
+      setStatusLoading(true)
+      try {
+        const current = await fetchCurrentElection({ signal: controller.signal })
+        setElection(current)
+        const status = await fetchVoterStatus(session.accessToken, current.id, { signal: controller.signal })
+        setMeStatus(status)
+        setStatusError(null)
 
-  const voteSummary = useMemo<VoteSummary | null>(() => {
-    if (!hasVoted) return null
-    return readStoredVoteData() ?? fallbackVoteSummary
-  }, [hasVoted])
+        const computed: VotingStatus = status.has_voted
+          ? 'voted'
+          : current.status === 'VOTING_OPEN'
+            ? 'open'
+            : current.status === 'VOTING_CLOSED' || current.status === 'CLOSED'
+              ? 'closed'
+              : 'not_started'
+        updateSession({ hasVoted: status.has_voted, votingStatus: computed })
+      } catch (err: any) {
+        if ((err as Error).name === 'AbortError') return
+        setStatusError(err?.message ?? 'Gagal memuat status pemilu.')
+        setMeStatus(null)
+      } finally {
+        setStatusLoading(false)
+      }
+    }
+
+    loadStatus()
+    return () => controller.abort()
+  }, [session, updateSession])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchPublicCandidates({ signal: controller.signal, token: session?.accessToken })
+      .then((items) => {
+        setCandidates(items)
+        setCandidatesError(null)
+      })
+      .catch(() => {
+        setCandidatesError('Menampilkan data sementara.')
+        setCandidates(mockCandidates)
+      })
+
+    return () => controller.abort()
+  }, [session?.accessToken])
 
   if (!session) {
     return <Navigate to="/login" replace />
   }
 
-  const kandidatPreview = mockCandidates.slice(0, 2)
+  const hasVoted = meStatus?.has_voted ?? false
+  const isEligible = meStatus?.eligible ?? true
+  const isVotingOpen = election?.status === 'VOTING_OPEN'
+  const votingStatus: VotingStatus = hasVoted ? 'voted' : isVotingOpen ? 'open' : election ? 'closed' : 'not_started'
+  const canOnline = Boolean(isVotingOpen && isEligible && meStatus?.online_allowed)
+  const canTPS = Boolean(isVotingOpen && isEligible && meStatus?.tps_allowed)
+  const lastVoteTime = formatDateTime(meStatus?.last_vote_at)
+  const methodLabel = methodLabelMap[meStatus?.method ?? 'NONE'] ?? 'Belum memilih'
+  const modeVoting = election ? [election.online_enabled && 'Online', election.tps_enabled && 'TPS'].filter(Boolean).join(' & ') || 'Belum ditetapkan' : '—'
+  const periodeVoting = election ? formatDateRange(election.voting_start_at, election.voting_end_at) : '—'
+  const kandidatPreview = candidates.slice(0, 2)
+  const voteData = hasVoted ? (() => {
+    const raw = sessionStorage.getItem('voteData')
+    if (!raw) return null
+    try {
+      return JSON.parse(raw) as { token?: string }
+    } catch {
+      return null
+    }
+  })() : null
+
+  const banner = useMemo<BannerContent>(() => {
+    if (statusLoading) {
+      return {
+        type: 'info',
+        icon: '⏳',
+        title: 'Memuat status pemilu...',
+        subtitle: 'Mohon tunggu sebentar.',
+        showCTA: false,
+      }
+    }
+
+    if (statusError) {
+      return {
+        type: 'warning',
+        icon: '⚠',
+        title: 'Gagal memuat status',
+        subtitle: statusError,
+        showCTA: false,
+      }
+    }
+
+    if (!election) {
+      return {
+        type: 'warning',
+        icon: 'ℹ️',
+        title: 'Belum ada pemilu aktif',
+        subtitle: 'Cek kembali nanti atau hubungi panitia.',
+        showCTA: false,
+      }
+    }
+
+    if (!isEligible) {
+      return {
+        type: 'warning',
+        icon: '⚠',
+        title: 'Anda belum terdaftar sebagai pemilih',
+        subtitle: 'Hubungi panitia untuk validasi data.',
+        showCTA: false,
+      }
+    }
+
+    if (hasVoted) {
+      return {
+        type: 'success',
+        icon: '✓',
+        title: 'Anda sudah melakukan pemilihan',
+        subtitle: lastVoteTime ? `Terakhir memilih: ${lastVoteTime}` : `Metode: ${methodLabel}`,
+        description: methodLabel !== 'Belum memilih' ? `Metode: ${methodLabel}` : undefined,
+        showCTA: true,
+      }
+    }
+
+    if (!isVotingOpen) {
+      return {
+        type: 'info',
+        icon: 'ℹ️',
+        title: election.status === 'VOTING_CLOSED' || election.status === 'CLOSED' ? 'Voting telah ditutup' : 'Voting belum dibuka',
+        subtitle: periodeVoting,
+        showCTA: false,
+      }
+    }
+
+    return {
+      type: 'warning',
+      icon: '⚠',
+      title: 'Anda BELUM melakukan pemilihan',
+      subtitle: `Periode Voting: ${periodeVoting}`,
+      description: 'Silakan pilih salah satu metode di bawah.',
+      showCTA: true,
+    }
+  }, [statusLoading, statusError, election, isEligible, hasVoted, isVotingOpen, lastVoteTime, methodLabel, periodeVoting])
 
   const handleStartVotingOnline = () => {
-    if (votingStatus !== 'open') return
+    if (!canOnline || hasVoted) return
     navigate('/voting')
   }
 
-  const handleGenerateQR = () => {
-    if (votingStatus !== 'open') return
-    setQrGenerated(true)
-    navigate('/voting-tps')
+  const handleOpenTPS = () => {
+    if (!canTPS || hasVoted) return
+    navigate('/voting-tps/scanner')
   }
 
   const handleLogout = () => {
@@ -100,93 +217,13 @@ const DashboardPemilih = (): JSX.Element => {
     }
   }
 
-  const banner = useMemo<BannerContent>(() => {
-    if (votingStatus === 'not_started') {
-      return {
-        type: 'info',
-        icon: 'ℹ️',
-        title: 'Voting belum dibuka',
-        subtitle: 'Periode voting dimulai 12 Juni pukul 00:00.',
-        showCTA: false,
-      }
-    }
-
-    if (votingStatus === 'closed') {
-      return {
-        type: 'success',
-        icon: '✓',
-        title: 'Voting telah ditutup',
-        subtitle: 'Terima kasih atas partisipasi Anda.',
-        showCTA: false,
-      }
-    }
-
-    if (hasVoted && voteSummary) {
-      return {
-        type: 'success',
-        icon: '✓',
-        title: 'Anda sudah melakukan pemilihan',
-        subtitle: `Waktu voting: ${voteSummary.waktu}`,
-        showCTA: true,
-        ctaText: 'Lihat Informasi Pemira',
-        ctaAction: () => window.location.assign('#kandidat'),
-      }
-    }
-
-    return {
-      type: 'warning',
-      icon: '⚠',
-      title: 'Anda BELUM melakukan pemilihan',
-      subtitle: `Periode Voting: ${pemiraStats.periodeVoting}`,
-      description: 'Silakan pilih salah satu metode di bawah.',
-      showCTA: true,
-    }
-  }, [hasVoted, voteSummary, votingStatus])
-
   const dashboardUser = {
     ...mahasiswa,
     fakultas: mahasiswa.fakultas ?? 'Fakultas Teknik Informatika',
   }
-  const cycleVotingStatus = () => {
-    const states: VotingStatus[] = ['not_started', 'open', 'closed']
-    const index = states.indexOf(votingStatus)
-    const next = states[(index + 1) % states.length]
-    setVotingStatus(next)
-    updateSession({ votingStatus: next })
-  }
-
-  const toggleHasVoted = () => {
-    const next = !hasVoted
-    setHasVoted(next)
-    updateSession({ hasVoted: next, votingStatus: next ? 'voted' : 'open' })
-  }
 
   return (
     <div className="dashboard-page">
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '1rem',
-          left: '1rem',
-          background: 'white',
-          padding: '1rem',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          zIndex: 9999,
-          fontSize: '0.875rem',
-        }}
-      >
-        <strong>Dev Controls:</strong>
-        <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <button onClick={toggleHasVoted} style={{ padding: '0.5rem', cursor: 'pointer', borderRadius: '4px' }} type="button">
-            Toggle Voted: {hasVoted ? '✓ Sudah' : '✗ Belum'}
-          </button>
-          <button onClick={cycleVotingStatus} style={{ padding: '0.5rem', cursor: 'pointer', borderRadius: '4px' }} type="button">
-            Status: {votingStatus}
-          </button>
-        </div>
-      </div>
-
       <header className="dashboard-header">
         <div className="dashboard-header-container">
           <div className="header-left">
@@ -199,6 +236,9 @@ const DashboardPemilih = (): JSX.Element => {
           </div>
 
           <div className="header-right">
+            <button className="btn-outline" onClick={handleLogout} type="button">
+              Logout
+            </button>
             <div className="user-menu">
               <button className="user-menu-trigger" onClick={() => setShowDropdown((prev) => !prev)}>
                 <span className="user-avatar">{dashboardUser.nama.charAt(0)}</span>
@@ -215,13 +255,6 @@ const DashboardPemilih = (): JSX.Element => {
                       {dashboardUser.fakultas && <span>{dashboardUser.fakultas}</span>}
                     </div>
                   </div>
-                  <div className="dropdown-divider" />
-                  <a href="#profil" className="dropdown-item">
-                    Profil
-                  </a>
-                  <a href="#aktivitas" className="dropdown-item">
-                    Log Aktivitas
-                  </a>
                   <div className="dropdown-divider" />
                   <button onClick={handleLogout} className="dropdown-item logout" type="button">
                     Logout
@@ -245,21 +278,13 @@ const DashboardPemilih = (): JSX.Element => {
               </div>
             </div>
 
-            {banner.showCTA && !hasVoted && votingStatus === 'open' && (
+            {banner.showCTA && !hasVoted && (
               <div className="banner-cta">
-                <button className="btn-primary btn-large" onClick={handleStartVotingOnline} type="button">
-                  Mulai Pemilihan Online
+                <button className="btn-primary btn-large" onClick={handleStartVotingOnline} type="button" disabled={!canOnline}>
+                  {canOnline ? 'Mulai Pemilihan Online' : 'Voting Online tidak tersedia'}
                 </button>
-                <button className="btn-secondary btn-large" onClick={handleGenerateQR} type="button">
-                  Pilih via TPS (Offline)
-                </button>
-              </div>
-            )}
-
-            {banner.showCTA && hasVoted && banner.ctaText && (
-              <div className="banner-cta">
-                <button className="btn-outline btn-large" onClick={banner.ctaAction} type="button">
-                  {banner.ctaText}
+                <button className="btn-secondary btn-large" onClick={handleOpenTPS} type="button" disabled={!canTPS}>
+                  {canTPS ? 'Scan QR di TPS' : 'TPS tidak tersedia'}
                 </button>
               </div>
             )}
@@ -272,29 +297,33 @@ const DashboardPemilih = (): JSX.Element => {
                 <div className="info-list">
                   <div className="info-item">
                     <span className="info-label">Periode Voting</span>
-                    <span className="info-value">{pemiraStats.periodeVoting}</span>
+                    <span className="info-value">{periodeVoting}</span>
                   </div>
                   <div className="info-item">
                     <span className="info-label">Mode Voting</span>
-                    <span className="info-value">{pemiraStats.modeVoting}</span>
+                    <span className="info-value">{modeVoting}</span>
                   </div>
                   <div className="info-item">
-                    <span className="info-label">Jumlah Kandidat</span>
-                    <span className="info-value">{pemiraStats.totalKandidat}</span>
+                    <span className="info-label">Status</span>
+                    <span className="info-value">{election?.status ?? '—'}</span>
                   </div>
                   <div className="info-item">
-                    <span className="info-label">Lokasi TPS</span>
-                    <span className="info-value">{pemiraStats.lokasiTPS}</span>
+                    <span className="info-label">Kanal tersedia</span>
+                    <span className="info-value">
+                      {canOnline ? 'Online' : ''} {canOnline && canTPS ? '&' : ''} {canTPS ? 'TPS' : ''} {!canOnline && !canTPS && 'Tidak tersedia'}
+                    </span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">Terakhir memilih</span>
+                    <span className="info-value">{hasVoted ? lastVoteTime ?? methodLabel : 'Belum memilih'}</span>
                   </div>
                 </div>
-                <a href="#panduan" className="card-link">
-                  Lihat Panduan Pemilihan →
-                </a>
               </div>
 
               <div className="info-card">
                 <h3 className="card-title">Daftar Kandidat</h3>
-                <p className="card-subtitle">{pemiraStats.totalKandidat} Kandidat terdaftar</p>
+                {candidatesError && <p className="error-text-small">{candidatesError}</p>}
+                <p className="card-subtitle">{candidates.length} Kandidat terdaftar</p>
 
                 <div className="kandidat-preview">
                   {kandidatPreview.map((kandidat) => (
@@ -309,18 +338,6 @@ const DashboardPemilih = (): JSX.Element => {
                   Lihat Semua Kandidat
                 </button>
               </div>
-
-              <div className="info-card">
-                <h3 className="card-title">Pengumuman Penting</h3>
-                <div className="pengumuman-list">
-                  {dashboardAnnouncements.map((item) => (
-                    <div key={item.id} className="pengumuman-item">
-                      <span className="pengumuman-icon">📢</span>
-                      <span className="pengumuman-text">{item.text}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
 
             <div className="dashboard-right">
@@ -328,59 +345,56 @@ const DashboardPemilih = (): JSX.Element => {
                 <div className="action-card">
                   <h3 className="card-title">Metode Pemilihan</h3>
 
-                  <div className="method-card">
+                  <div className={`method-card ${!canOnline ? 'method-disabled' : ''}`}>
                     <div className="method-icon">📱</div>
                     <div className="method-content">
                       <h4 className="method-title">Voting Online</h4>
-                      <p className="method-description">
-                        Pilih kandidat langsung dari aplikasi. Tersimpan secara otomatis dan aman.
-                      </p>
+                      <p className="method-description">Pilih kandidat langsung dari aplikasi. Tersimpan secara otomatis dan aman.</p>
                     </div>
-                    <button className="btn-primary btn-block" onClick={handleStartVotingOnline} type="button">
-                      Mulai Voting Online
+                    <button className="btn-primary btn-block" onClick={handleStartVotingOnline} type="button" disabled={!canOnline}>
+                      {canOnline ? 'Mulai Voting Online' : 'Tidak tersedia'}
                     </button>
                   </div>
 
-                  <div className="method-card">
+                  <div className={`method-card ${!canTPS ? 'method-disabled' : ''}`}>
                     <div className="method-icon">📷</div>
                     <div className="method-content">
                       <h4 className="method-title">Voting di TPS (Offline)</h4>
-                      <p className="method-description">
-                        Dapatkan QR hak suara Anda. Tunjukkan ke panitia di lokasi TPS.
-                      </p>
+                      <p className="method-description">Panitia menyiapkan QR hak suara. Scan QR di TPS dan konfirmasi pilihan Anda.</p>
                     </div>
-                    <button className="btn-secondary btn-block" onClick={handleGenerateQR} type="button">
-                      Generate QR Hak Suara
+                    <button className="btn-secondary btn-block" onClick={handleOpenTPS} type="button" disabled={!canTPS}>
+                      {canTPS ? 'Buka Scanner TPS' : 'Tidak tersedia'}
                     </button>
-                    {qrGenerated && <p className="method-note">✓ QR sudah digenerate</p>}
                   </div>
                 </div>
               )}
 
-              {hasVoted && voteSummary && (
+              {hasVoted && (
                 <div className="action-card">
                   <h3 className="card-title">Bukti Pemilihan</h3>
 
                   <div className="bukti-card">
                     <div className="bukti-icon">✓</div>
-                    <h4 className="bukti-title">Anda telah memilih pada:</h4>
-                    <p className="bukti-waktu">{voteSummary.waktu}</p>
+                    <h4 className="bukti-title">Anda telah memilih</h4>
+                    <p className="bukti-waktu">{lastVoteTime ?? methodLabel}</p>
 
                     <div className="bukti-token">
-                      <span className="token-label">Token voting:</span>
-                      <span className="token-value">{voteSummary.token}</span>
+                      <span className="token-label">Metode:</span>
+                      <span className="token-value">{methodLabel}</span>
                     </div>
+                    {voteData?.token && (
+                      <div className="bukti-token">
+                        <span className="token-label">Token:</span>
+                        <span className="token-value">{voteData.token}</span>
+                      </div>
+                    )}
 
                     <p className="bukti-note">🔒 Pilihan Anda tetap rahasia.</p>
-
-                    <button className="btn-outline btn-block" type="button">
-                      Lihat Hasil Sementara
-                    </button>
                   </div>
                 </div>
               )}
 
-              {votingStatus !== 'open' && (
+              {votingStatus !== 'open' && !hasVoted && (
                 <div className="action-card">
                   <div className="empty-state">
                     <div className="empty-icon">📅</div>
