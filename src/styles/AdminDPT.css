@@ -1,0 +1,175 @@
+.admin-dpt-page {
+  padding: 2rem;
+  background: #f8fafc;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.filters input,
+.filters select {
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5f5;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-primary,
+.btn-outline,
+.btn-link,
+.btn-danger,
+.btn-table,
+.btn-outline {
+  border: none;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4338ca, #6366f1);
+  color: #fff;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid #93c5fd;
+  color: #1d4ed8;
+}
+
+.btn-link {
+  background: none;
+  color: #2563eb;
+  padding: 0;
+}
+
+.btn-table {
+  border: 1px solid #cbd5f5;
+  background: white;
+}
+
+.mass-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.table-wrapper {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+  overflow-x: auto;
+}
+
+.table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-wrapper th,
+.table-wrapper td {
+  padding: 0.9rem;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+}
+
+.table-wrapper th {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.status-chip.belum {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-chip.sudah {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.empty-state {
+  text-align: center;
+  color: #94a3b8;
+  padding: 1.5rem;
+}
+
+.import-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.import-steps .step {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 0.75rem;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.import-steps .step.active {
+  background: #1d4ed8;
+  color: white;
+}
+
+.card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+.mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.mapping-grid select {
+  padding: 0.6rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5f5;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.warning {
+  border-left: 4px solid #fbbf24;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -1,0 +1,162 @@
+.admin-settings-page {
+  padding: 2rem;
+  background: #f1f5f9;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+}
+
+.settings-header .label {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #818cf8;
+}
+
+.settings-header h1 {
+  margin: 0.2rem 0;
+}
+
+.card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.field-group {
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-group select,
+.field-group input {
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5f5;
+}
+
+.mode-options {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.mode-options label {
+  background: #f8fafc;
+  padding: 0.65rem 1rem;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mode-options label.disabled {
+  opacity: 0.5;
+}
+
+.timeline-card .timeline-table {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.timeline-header,
+.timeline-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.timeline-header span {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.timeline-row input {
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5f5;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.rules-grid h3 {
+  margin-top: 0;
+}
+
+.rules-grid label {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.warning {
+  color: #b91c1c;
+}
+
+.warning-text {
+  color: #b45309;
+}
+
+.btn-primary,
+.btn-outline,
+.btn-danger,
+.btn-link {
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4338ca, #6366f1);
+  color: #fff;
+}
+
+.btn-outline {
+  border: 1px solid #a5b4fc;
+  background: transparent;
+  color: #4338ca;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: white;
+}
+
+.btn-link {
+  background: none;
+  color: #2563eb;
+  padding: 0;
+}
+
+.tps-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #475569;
+}
+
+@media (max-width: 768px) {
+  .timeline-header,
+  .timeline-row {
+    grid-template-columns: 1fr;
+  }
+}
