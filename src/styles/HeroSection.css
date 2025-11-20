@@ -75,6 +75,12 @@
   font-weight: 600;
 }
 
+.hero-error {
+  color: #b91c1c;
+  margin: 0;
+  font-weight: 600;
+}
+
 .hero-cta {
   display: flex;
   gap: 1rem;
