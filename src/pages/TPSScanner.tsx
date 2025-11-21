@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { BrowserMultiFormatReader } from '@zxing/library'
 import { useVotingSession } from '../hooks/useVotingSession'
@@ -16,18 +16,32 @@ const TPSScanner = (): JSX.Element => {
   const [torchEnabled, setTorchEnabled] = useState(false)
   const [stream, setStream] = useState<MediaStream | null>(null)
 
-  useEffect(() => {
-    startScanner()
-    return () => {
-      stopScanner()
+  const stopScanner = useCallback(() => {
+    if (codeReaderRef.current) {
+      codeReaderRef.current.reset()
     }
-  }, [])
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop())
+    }
+  }, [stream])
 
-  if (!session) {
-    return <Navigate to="/login" replace />
-  }
+  const handleQRScanned = useCallback(
+    (qrData: string) => {
+      stopScanner()
 
-  const startScanner = async () => {
+      const payload: TPSScanResult = {
+        token: qrData,
+        tpsName: 'Aula Utama - TPS 1',
+        scannedAt: new Date().toISOString(),
+      }
+
+      sessionStorage.setItem('scannedQR', JSON.stringify(payload))
+      navigate('/voting-tps/validate')
+    },
+    [navigate, stopScanner],
+  )
+
+  const startScanner = useCallback(async () => {
     try {
       setError(null)
       setPermissionDenied(false)
@@ -52,11 +66,19 @@ const TPSScanner = (): JSX.Element => {
       }
 
 
-      codeReader.decodeFromVideoElement(videoRef.current as HTMLVideoElement, (result) => {
-        if (result) {
-          handleQRScanned(result.getText())
-        }
-      })
+      codeReader.decodeFromVideoElement(
+        videoRef.current as HTMLVideoElement,
+        (result) => {
+          if (result) {
+            handleQRScanned(result.getText())
+          }
+        },
+        (err) => {
+          if (err && err.message !== 'Decode hint failed. No QR code found') {
+            setError('Tidak dapat membaca QR, coba lagi.')
+          }
+        },
+      )
     } catch (err: unknown) {
       console.error('Scanner error:', err)
       if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
@@ -66,29 +88,7 @@ const TPSScanner = (): JSX.Element => {
         setError('Tidak dapat mengakses kamera')
       }
     }
-  }
-
-  const stopScanner = () => {
-    if (codeReaderRef.current) {
-      codeReaderRef.current.reset()
-    }
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop())
-    }
-  }
-
-  const handleQRScanned = (qrData: string) => {
-    stopScanner()
-
-    const payload: TPSScanResult = {
-      token: qrData,
-      tpsName: 'Aula Utama - TPS 1',
-      scannedAt: new Date().toISOString(),
-    }
-
-    sessionStorage.setItem('scannedQR', JSON.stringify(payload))
-    navigate('/voting-tps/validate')
-  }
+  }, [handleQRScanned])
 
   const toggleTorch = async () => {
     if (!stream) return
@@ -110,6 +110,17 @@ const TPSScanner = (): JSX.Element => {
     setPermissionDenied(false)
     setError(null)
     startScanner()
+  }
+
+  useEffect(() => {
+    startScanner()
+    return () => {
+      stopScanner()
+    }
+  }, [startScanner, stopScanner])
+
+  if (!session) {
+    return <Navigate to="/login" replace />
   }
 
   return (

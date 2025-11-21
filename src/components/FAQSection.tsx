@@ -8,29 +8,24 @@ type FAQ = {
 
 const faqs: FAQ[] = [
   {
-    question: 'Apa syarat memilih?',
-    answer:
-      'Mahasiswa aktif Universitas Wahidiyah yang terdaftar dengan NIM valid dan telah melakukan aktivasi akun.',
+    question: 'Apa syarat untuk memilih?',
+    answer: 'Anda hanya perlu memiliki akun PEMIRA dan terdaftar sebagai mahasiswa aktif Universitas Wahidiyah.',
   },
   {
     question: 'Bagaimana cara login?',
-    answer:
-      'Gunakan NIM sebagai username dan password yang telah dikirim ke email kampus Anda. Verifikasi dengan OTP yang dikirim ke nomor HP terdaftar.',
+    answer: 'Masuk menggunakan username/email kampus dan password yang Anda buat saat pendaftaran.',
   },
   {
-    question: 'Apakah suara saya rahasia?',
-    answer:
-      'Ya, sistem kami menjamin kerahasiaan pilihan Anda. Tidak ada pihak yang dapat melihat pilihan individu, termasuk panitia.',
+    question: 'Apakah suara saya benar-benar rahasia?',
+    answer: 'Ya. Sistem tidak menyimpan identitas pilihan Anda. Data pemilih dan data suara dipisahkan sepenuhnya.',
   },
   {
     question: 'Bagaimana jika saya lupa password?',
-    answer:
-      "Klik 'Lupa Password' di halaman login, masukkan NIM Anda, dan ikuti instruksi reset password via email.",
+    answer: 'Gunakan fitur pemulihan password di halaman login atau hubungi panitia KPUM.',
   },
   {
-    question: 'Bagaimana cara memilih offline?',
-    answer:
-      'Login ke sistem, generate QR Hak Suara, datang ke TPS dengan membawa KTM, dan tunjukkan QR kepada petugas.',
+    question: 'Apa beda memilih online dan offline?',
+    answer: 'Online melalui aplikasi, offline melalui TPS kampus dengan scan QR. Keduanya sah dan aman.',
   },
 ]
 
@@ -42,7 +37,7 @@ const FAQSection = (): JSX.Element => {
   }
 
   return (
-    <section className="faq">
+    <section className="faq" id="faq">
       <div className="faq-container">
         <h2 className="section-title">Pertanyaan Umum</h2>
 

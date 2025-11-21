@@ -1,45 +1,43 @@
 import '../styles/StagesSection.css'
 
-type Stage = {
-  number: string
+type Step = {
+  icon: string
   title: string
   description: string
 }
 
-const stages: Stage[] = [
+const steps: Step[] = [
   {
-    number: '1',
-    title: 'Pendaftaran Calon',
-    description: 'Calon ketua mendaftar dan diverifikasi',
+    icon: '🔑',
+    title: 'Daftar atau Login',
+    description: 'Buat akun PEMIRA atau masuk menggunakan akun kampus Anda.',
   },
   {
-    number: '2',
-    title: 'Masa Kampanye',
-    description: 'Profil kandidat dipublikasikan',
+    icon: '🗺️',
+    title: 'Pilih Mode Pemilihan',
+    description: 'Anda dapat memilih secara Online atau datang ke TPS (Offline) sesuai kenyamanan.',
   },
   {
-    number: '3',
-    title: 'Pemungutan Suara',
-    description: 'Mahasiswa memilih online atau di TPS',
-  },
-  {
-    number: '4',
-    title: 'Pengumuman Hasil',
-    description: 'Hasil resmi diumumkan panitia',
+    icon: '✅',
+    title: 'Pilih Kandidat & Konfirmasi',
+    description: 'Baca profil kandidat, pilih calon ketua BEM, lalu konfirmasi pilihan Anda.',
   },
 ]
 
 const StagesSection = (): JSX.Element => (
-  <section className="stages">
+  <section className="stages" id="cara-memilih">
     <div className="stages-container">
-      <h2 className="section-title">Tahapan Pemilihan</h2>
+      <div className="flow-heading">
+        <h2 className="section-title">Bagaimana Cara Saya Memilih?</h2>
+        <p className="section-subtitle">Ikuti tiga langkah sederhana berikut untuk memberikan suara Anda.</p>
+      </div>
 
-      <div className="stages-grid">
-        {stages.map((stage) => (
-          <div key={stage.number} className="stage-card">
-            <div className="stage-number">{stage.number}</div>
-            <h3 className="stage-title">{stage.title}</h3>
-            <p className="stage-description">{stage.description}</p>
+      <div className="steps-grid">
+        {steps.map((step) => (
+          <div key={step.title} className="step-card">
+            <div className="step-icon">{step.icon}</div>
+            <h3 className="step-title">{step.title}</h3>
+            <p className="step-description">{step.description}</p>
           </div>
         ))}
       </div>

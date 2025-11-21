@@ -1,0 +1,224 @@
+.guide-layout {
+  padding: 3.5rem 1.25rem 5rem;
+  background: #f8fafc;
+}
+
+.guide-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.75rem;
+}
+
+.guide-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.guide-heading h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  color: #0f172a;
+}
+
+.guide-heading p {
+  margin: 0.35rem 0 0 0;
+  color: #475569;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.guide-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.25rem;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.summary-card h3 {
+  margin: 0.35rem 0 0 0;
+  font-size: 1.2rem;
+  color: #0f172a;
+}
+
+.summary-card p {
+  margin: 0;
+  color: #4a5568;
+}
+
+.summary-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 1.5rem;
+}
+
+.summary-action {
+  margin-top: auto;
+  color: #4338ca;
+  font-weight: 700;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.summary-action:hover {
+  text-decoration: underline;
+}
+
+.summary-divider {
+  position: absolute;
+  right: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.9rem;
+  color: #475569;
+  display: inline-flex;
+}
+
+.step-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.step-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+
+.step-card p {
+  margin: 0.15rem 0 0 0;
+  color: #4a5568;
+  line-height: 1.5;
+}
+
+.step-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #eef2ff;
+  color: #4338ca;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.recap-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.recap-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #ecfeff;
+  color: #0ea5e9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+.recap-card h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #0f172a;
+}
+
+.recap-card p {
+  margin: 0.1rem 0 0 0;
+  color: #475569;
+}
+
+.faq-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.faq-mini-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  background: #ffffff;
+}
+
+.faq-mini-item summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  color: #0f172a;
+  font-weight: 700;
+  list-style: none;
+}
+
+.faq-mini-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-mini-item p {
+  margin: 0.55rem 0 0 0;
+  color: #4a5568;
+}
+
+.faq-mini-icon {
+  font-weight: 700;
+  color: #4338ca;
+}
+
+@media (max-width: 640px) {
+  .guide-layout {
+    padding: 2.5rem 1rem 4rem;
+  }
+
+  .guide-section {
+    padding: 1.25rem;
+  }
+
+  .summary-grid {
+    display: flex;
+    gap: 0.85rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scroll-snap-type: x mandatory;
+  }
+
+  .summary-card {
+    min-width: 240px;
+    scroll-snap-align: start;
+  }
+
+  .summary-divider {
+    display: none;
+  }
+}

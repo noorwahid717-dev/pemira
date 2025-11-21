@@ -21,7 +21,7 @@ export const demoFeatureList = [
 ]
 
 export const quickLinks = [
-  { href: '/', label: '🏠 Landing Page' },
+  { href: '/', label: '🏠 Beranda' },
   { href: '/login', label: '🔐 Login' },
   { href: '/dashboard', label: '📊 Dashboard' },
 ]

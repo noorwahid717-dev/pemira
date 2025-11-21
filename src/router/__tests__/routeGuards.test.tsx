@@ -19,7 +19,7 @@ const dummySession: VoterSession = {
 }
 
 const ProtectedContent = () => <p>Protected Content</p>
-const PublicContent = () => <p>Public Landing</p>
+const PublicContent = () => <p>Beranda Publik</p>
 const LoginPage = () => <p>Login Page</p>
 const DashboardPage = () => <p>Dashboard Page</p>
 
@@ -72,7 +72,7 @@ describe('PublicOnlyRoute', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Public Landing')).toBeDefined()
+    expect(screen.getByText('Beranda Publik')).toBeDefined()
   })
 
   it('redirects to dashboard when session exists', () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useVotingSession } from '../hooks/useVotingSession'
 import type { TPSScanResult } from '../types/voting'
@@ -15,6 +15,23 @@ const TPSValidation = (): JSX.Element => {
   const [errorType, setErrorType] = useState<ValidationError | null>(null)
   const [qrData, setQrData] = useState<TPSScanResult | null>(null)
   const [votingTime, setVotingTime] = useState<string | null>(null)
+
+  const validateVotingEligibility = useCallback(() => {
+    if (session?.hasVoted) {
+      setValidationState('error')
+      setErrorType('already_voted')
+      setVotingTime('14 Juni 2024, 10:24 WIB')
+      return
+    }
+
+    const scenario: ValidationState | ValidationError = 'valid'
+    if (scenario === 'valid') {
+      setValidationState('valid')
+    } else {
+      setValidationState('error')
+      setErrorType(scenario as ValidationError)
+    }
+  }, [session?.hasVoted])
 
   useEffect(() => {
     const scannedQR = sessionStorage.getItem('scannedQR')
@@ -33,27 +50,10 @@ const TPSValidation = (): JSX.Element => {
       sessionStorage.removeItem('scannedQR')
       navigate('/voting-tps', { replace: true })
     }
-  }, [navigate])
+  }, [navigate, validateVotingEligibility])
 
   if (!session) {
     return <Navigate to="/login" replace />
-  }
-
-  const validateVotingEligibility = () => {
-    if (session.hasVoted) {
-      setValidationState('error')
-      setErrorType('already_voted')
-      setVotingTime('14 Juni 2024, 10:24 WIB')
-      return
-    }
-
-    const scenario: ValidationState | ValidationError = 'valid'
-    if (scenario === 'valid') {
-      setValidationState('valid')
-    } else {
-      setValidationState('error')
-      setErrorType(scenario as ValidationError)
-    }
   }
 
   const handleStartVoting = () => {

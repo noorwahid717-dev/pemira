@@ -1,9 +1,7 @@
-import { useMemo } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/shared/PageHeader'
 import { useVotingSession } from '../hooks/useVotingSession'
 import { tpsInfoChecklist } from '../data/voting'
-import type { VotingStatus } from '../types/voting'
 import '../styles/VotingTPS.css'
 
 const VotingTPS = (): JSX.Element => {
@@ -14,7 +12,7 @@ const VotingTPS = (): JSX.Element => {
     return <Navigate to="/login" replace />
   }
 
-  const votingStatus = useMemo<VotingStatus>(() => session.votingStatus ?? 'open', [session])
+  const votingStatus = session.votingStatus ?? 'open'
 
   const handleLogout = () => {
     clearSession()

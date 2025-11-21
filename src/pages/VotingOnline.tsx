@@ -22,12 +22,8 @@ const VotingOnline = (): JSX.Element => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [votingResult, setVotingResult] = useState<VotingReceipt | null>(null)
 
-  if (!session) {
-    return <Navigate to="/login" replace />
-  }
-
-  const votingStatus = session.votingStatus ?? 'open'
-  const hasVoted = session.hasVoted ?? false
+  const votingStatus = session?.votingStatus ?? 'open'
+  const hasVoted = session?.hasVoted ?? false
 
   useEffect(() => {
     if (hasVoted && step !== 3) {
@@ -79,6 +75,10 @@ const VotingOnline = (): JSX.Element => {
       setIsSubmitting(false)
       setStep(3)
     }, 2000)
+  }
+
+  if (!session) {
+    return <Navigate to="/login" replace />
   }
 
   if (votingStatus === 'not_started') {

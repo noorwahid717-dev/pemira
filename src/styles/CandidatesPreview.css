@@ -14,6 +14,12 @@
   margin-bottom: 1rem;
 }
 
+.section-subtitle {
+  text-align: center;
+  color: #4a5568;
+  margin: 0;
+}
+
 .error-text {
   text-align: center;
   color: #b91c1c;
@@ -34,6 +40,10 @@
   text-align: center;
   border: 2px solid #e2e8f0;
   transition: all 0.3s ease;
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .candidate-card:hover {
@@ -58,6 +68,14 @@
   font-size: 3rem;
   font-weight: 700;
   margin: 0 auto;
+}
+
+.candidate-photo img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #eef2ff;
 }
 
 .candidate-name {

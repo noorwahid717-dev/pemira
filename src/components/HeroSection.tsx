@@ -34,52 +34,55 @@ const statusLabelMap: Record<string, string> = {
 }
 
 const HeroSection = ({ election, loading = false, error }: Props): JSX.Element => {
-  const statusLabel = loading ? 'Memuat status...' : election ? statusLabelMap[election.status] ?? election.status : 'Belum ada pemilu aktif'
-  const period = election ? formatPeriod(election.voting_start_at, election.voting_end_at) : '—'
-  const modeActive = election ? [election.online_enabled && 'Online', election.tps_enabled && 'TPS'].filter(Boolean).join(' & ') || 'Belum ditetapkan' : '—'
-  const totalVoters = '—'
-  const primaryCtaLabel = election?.status === 'VOTING_OPEN' ? 'Masuk untuk Memilih' : 'Masuk'
-  const subtitle = election?.name ?? 'Sistem pemilu kampus yang aman, transparan, dan modern.'
-  const showError = !loading && error
+  const hasElection = Boolean(election)
+  const isNoActiveElectionError = error?.toLowerCase().includes('pemilu aktif')
+  const statusLabel = loading ? 'Memuat status...' : hasElection ? statusLabelMap[election?.status ?? ''] ?? 'Pemilu aktif' : 'Belum ada pemilu aktif'
+  const period = election ? formatPeriod(election.voting_start_at, election.voting_end_at) : 'Jadwal voting akan diumumkan panitia.'
+  const modeActive = election ? [election.online_enabled && 'Online', election.tps_enabled && 'TPS'].filter(Boolean).join(' & ') || 'Mode akan diumumkan' : 'Online & TPS akan diumumkan'
+  const isVotingOpen = election?.status === 'VOTING_OPEN'
+  const primaryCtaLabel = isVotingOpen ? 'Masuk untuk Memilih' : 'Lihat Jadwal & Calon'
+  const primaryCtaHref = isVotingOpen ? '/login' : '#kandidat'
+  const subtitle = 'Sistem pemilu kampus yang aman, rahasia, dan mudah digunakan untuk seluruh mahasiswa UNIWA.'
+  const friendlyError =
+    !loading && error && !isNoActiveElectionError ? 'Tidak dapat memuat data saat ini. Coba lagi beberapa saat.' : null
 
   return (
-    <section className="hero">
+    <section className="hero" id="tentang">
       <div className="hero-container">
         <div className="hero-left">
-          <h1 className="hero-title">
-            {election?.name ?? 'Pemilihan Ketua BEM'}
-            <br />
-            {election?.year ? `Tahun ${election.year}` : 'Universitas Wahidiyah'}
-          </h1>
+          <h1 className="hero-title">Pemilihan Ketua BEM Universitas Wahidiyah</h1>
+          <div id="jadwal" />
 
           <p className="hero-subtitle">{subtitle}</p>
 
           <div className="hero-badge">
-            <span className="badge-status">Status: {statusLabel}</span>
+            <span className="badge-status">{statusLabel}</span>
           </div>
 
           <div className="hero-info">
             <div className="info-item">
-              <span className="info-label">Periode Voting:</span>
+              <span className="info-label">Periode voting</span>
               <span className="info-value">{period}</span>
             </div>
             <div className="info-item">
-              <span className="info-label">Total Pemilih Terdaftar:</span>
-              <span className="info-value">{totalVoters} Mahasiswa</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Mode:</span>
+              <span className="info-label">Mode yang tersedia</span>
               <span className="info-value">{modeActive}</span>
             </div>
-            {showError && <p className="hero-error">{error}</p>}
+            {friendlyError && <p className="hero-error">{friendlyError}</p>}
           </div>
 
           <div className="hero-cta">
-            <a href="/login">
+            <a href={primaryCtaHref}>
               <button className="btn-primary btn-large">{primaryCtaLabel}</button>
             </a>
             <a href="#kandidat">
-              <button className="btn-outline btn-large">Lihat Kandidat</button>
+              <button className="btn-outline btn-large">Lihat Calon Ketua BEM</button>
+            </a>
+          </div>
+
+          <div className="hero-note">
+            <a className="hero-guide-link" href="/panduan">
+              Lihat panduan lengkap pemilu →
             </a>
           </div>
         </div>

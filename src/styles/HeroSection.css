@@ -16,7 +16,7 @@
 .hero-left {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.1rem;
 }
 
 .hero-title {
@@ -85,6 +85,20 @@
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.hero-note {
+  margin-top: -0.4rem;
+}
+
+.hero-guide-link {
+  color: #4338ca;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.hero-guide-link:hover {
+  text-decoration: underline;
 }
 
 .hero-right {

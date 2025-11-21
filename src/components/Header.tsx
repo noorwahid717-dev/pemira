@@ -14,8 +14,9 @@ const Header = (): JSX.Element => {
 
         <nav className={`header-nav ${menuOpen ? 'open' : ''}`}>
           <a href="#tentang">Tentang</a>
+          <a href="#cara-memilih">Cara Memilih</a>
           <a href="#kandidat">Kandidat</a>
-          <a href="#panduan">Panduan</a>
+          <a href="/panduan">Panduan</a>
         </nav>
 
         <div className="header-actions">

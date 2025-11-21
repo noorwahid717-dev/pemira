@@ -28,21 +28,8 @@ const LoginMahasiswa = (): JSX.Element => {
   useEffect(() => {
     const header = headerRef.current
     const card = cardRef.current
-    const info = infoRef.current
     if (header) header.classList.add('reveal-in')
-    if (info) info.classList.add('reveal-left')
     if (card) card.classList.add('reveal-card')
-
-    const onMouseMove = (event: MouseEvent) => {
-      if (!info) return
-      const rect = info.getBoundingClientRect()
-      const offsetX = ((event.clientX - rect.left) / rect.width - 0.5) * 6
-      const offsetY = ((event.clientY - rect.top) / rect.height - 0.5) * 6
-      info.style.setProperty('--parallax-x', `${offsetX}px`)
-      info.style.setProperty('--parallax-y', `${offsetY}px`)
-    }
-    window.addEventListener('mousemove', onMouseMove)
-    return () => window.removeEventListener('mousemove', onMouseMove)
   }, [])
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,71 +69,72 @@ const LoginMahasiswa = (): JSX.Element => {
 
   return (
     <div className="login-page premium-page">
-      <header className="login-topbar" ref={headerRef}>
+      <header className="login-topbar new-appbar" ref={headerRef}>
         <div className="topbar-inner">
           <div className="topbar-left">
-            <div className="logo-pill">PEMIRA</div>
-            <span className="topbar-text">PEMIRA UNIVA 2025</span>
+            <div className="logo-pill">P</div>
+            <span className="topbar-text">PEMIRA UNIWA 2025</span>
           </div>
         </div>
       </header>
 
       <main className="login-main">
-        <div className="login-container">
-          <div className="login-left premium-left" ref={infoRef}>
-            <div className="info-panel">
-              <h2>Info Penting</h2>
+        <div className="auth-shell fade-in-up">
+          <div className="auth-heading">
+            <p className="eyebrow">LOGIN</p>
+            <h1>Masuk Pemilih</h1>
+            <p className="heading-sub">Gunakan akun PEMIRA atau akun kampus Anda.</p>
+          </div>
+
+          <div className={`login-card premium-card ${shake ? 'shake' : ''}`} ref={cardRef}>
+            <form onSubmit={handleSubmit} className="login-form">
+              <label className="form-field">
+                <span className="field-label">NIM/NIDN/NIP / Email UNIWA</span>
+                <input name="username" value={formData.username} onChange={handleInputChange} autoComplete="username" required />
+              </label>
+              <label className="form-field">
+                <span className="field-label">Password</span>
+                <div className="password-field">
+                  <input
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button type="button" className="btn-ghost" onClick={() => setShowPassword((prev) => !prev)}>
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                {error && <p className="field-error">{error}</p>}
+              </label>
+
+              <p className="micro-security">Pastikan Anda mengakses dari perangkat yang aman.</p>
+
+              <button type="submit" className="btn-primary cta-premium btn-full" disabled={loading || !formData.username || !formData.password}>
+                {loading ? 'Memproses...' : 'Masuk untuk Memilih'}
+              </button>
+              <div className="auth-links">
+                <a href="/register">Belum punya akun? Daftar sekarang</a>
+                <a href="/panduan">Lupa password? Hubungi panitia PEMIRA</a>
+              </div>
+            </form>
+          </div>
+
+          <details className="info-accordion" ref={infoRef}>
+            <summary>
+              <span>ℹ️ Info penting</span>
+              <span className="accordion-icon">+</span>
+            </summary>
+            <div className="accordion-body">
               <ul>
-                <li>Gunakan kredensial yang diberikan KPUM atau yang Anda daftarkan.</li>
-                <li>Jangan membagikan username & password kepada siapapun.</li>
+                <li>Gunakan kredensial yang diberikan PEMIRA atau yang Anda daftarkan.</li>
+                <li>Jangan membagikan email & password kepada siapapun.</li>
                 <li>Jika belum punya akun, daftar melalui halaman pendaftaran resmi.</li>
               </ul>
-              <p className="small-note">Kendala? Hubungi KPUM di helpdesk PEMIRA.</p>
-              <div className="mini-illustration" aria-hidden="true" />
             </div>
-          </div>
-
-          <div className="login-right">
-            <div className={`login-card premium-card ${shake ? 'shake' : ''}`} ref={cardRef}>
-              <div className="card-header">
-                <p className="label">Login</p>
-                <h3>Masuk Pemilih</h3>
-                <p className="card-subtitle">Masukkan kredensial untuk mengakses bilik suara online.</p>
-              </div>
-              <form onSubmit={handleSubmit} className="login-form">
-                <label className="form-field">
-                  <span className="field-label">Username / Email UNIVA</span>
-                  <input name="username" value={formData.username} onChange={handleInputChange} autoComplete="username" required />
-                </label>
-                <label className="form-field">
-                  <span className="field-label">Password</span>
-                  <div className="password-field">
-                    <input
-                      name="password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      autoComplete="current-password"
-                      required
-                    />
-                    <button type="button" className="btn-ghost" onClick={() => setShowPassword((prev) => !prev)}>
-                      {showPassword ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
-                  {error && <p className="field-error">{error}</p>}
-                </label>
-
-                <p className="micro-security">Pastikan Anda mengakses dari perangkat yang aman.</p>
-
-                <button type="submit" className="btn-primary cta-premium" disabled={loading || !formData.username || !formData.password}>
-                  {loading ? 'Memproses...' : 'Masuk'}
-                </button>
-                <p className="helper">
-                  Belum punya akun? <a href="/register">Daftar sekarang</a>
-                </p>
-              </form>
-            </div>
-          </div>
+          </details>
         </div>
       </main>
     </div>

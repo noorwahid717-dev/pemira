@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BrowserQRCodeSvgWriter } from '@zxing/library'
 import { loginUser, registerLecturerOrStaff, registerStudent, type RegisterResponse } from '../services/auth'
-import { getVoterQr, rotateVoterQr } from '../services/voterQr'
+import { rotateVoterQr } from '../services/voterQr'
 import { useVotingSession } from '../hooks/useVotingSession'
 import { ACTIVE_ELECTION_ID } from '../config/env'
 import { fetchFacultiesPrograms, type FacultyProgram } from '../services/meta'
@@ -39,57 +39,23 @@ const Register = (): JSX.Element => {
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [qrDataUri, setQrDataUri] = useState<string | null>(null)
   const [lastIdentity, setLastIdentity] = useState<{ username: string; mode: Mode; voterId?: number | null }>({ username: '', mode: 'online' })
+  const [showPassword, setShowPassword] = useState(false)
 
   const heroRef = useRef<HTMLDivElement | null>(null)
   const formCardRef = useRef<HTMLDivElement | null>(null)
-  const leftPanelRef = useRef<HTMLDivElement | null>(null)
-  const stickyCtaRef = useRef<HTMLDivElement | null>(null)
-  const lastScrollY = useRef<number>(0)
 
   useEffect(() => {
     const hero = heroRef.current
     const card = formCardRef.current
-    const left = leftPanelRef.current
-    const sticky = stickyCtaRef.current
-
     const reveal = (el: HTMLElement | null, delay = 0) => {
       if (!el) return
       el.style.transitionDelay = `${delay}ms`
       el.classList.add('reveal-in')
     }
     reveal(hero, 50)
-    reveal(card, 150)
-    reveal(left, 100)
-    if (sticky) sticky.classList.add('sticky-cta-show')
-
-    const onMouseMove = (event: MouseEvent) => {
-      if (!left) return
-      const rect = left.getBoundingClientRect()
-      const offsetX = ((event.clientX - rect.left) / rect.width - 0.5) * 8
-      const offsetY = ((event.clientY - rect.top) / rect.height - 0.5) * 8
-      left.style.setProperty('--parallax-x', `${offsetX}px`)
-      left.style.setProperty('--parallax-y', `${offsetY}px`)
-    }
-    window.addEventListener('mousemove', onMouseMove)
-
-    const onScroll = () => {
-      const current = window.scrollY
-      if (!sticky) return
-      const goingDown = current > lastScrollY.current
-      if (goingDown) {
-        sticky.classList.add('sticky-cta-hide')
-        sticky.classList.remove('sticky-cta-show')
-      } else {
-        sticky.classList.remove('sticky-cta-hide')
-        sticky.classList.add('sticky-cta-show')
-      }
-      lastScrollY.current = current
-    }
-    window.addEventListener('scroll', onScroll)
-
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('scroll', onScroll)
+    if (card) {
+      card.style.transitionDelay = '150ms'
+      card.classList.add('reveal-card')
     }
   }, [])
 
@@ -297,7 +263,7 @@ const Register = (): JSX.Element => {
     )
 
   const selectedProgramLabel = role === 'student' ? 'Program Studi' : role === 'lecturer' ? 'Departemen' : 'Unit'
-  const selectedSemesterLabel = role === 'student' ? 'Semester' : 'Semester / Tahun Masuk'
+  const selectedSemesterLabel = 'Semester'
   const facultyOptions = metaOptions.map((item) => item.faculty_name)
   const programOptions =
     role === 'student'
@@ -306,46 +272,59 @@ const Register = (): JSX.Element => {
 
   return (
     <div className="login-page premium-page">
-      <header className="login-topbar" ref={heroRef}>
+      <header className="login-topbar new-appbar" ref={heroRef}>
         <div className="topbar-inner">
           <div className="topbar-left">
-            <div className="logo-pill">PEMIRA</div>
-            <span className="topbar-text">PEMIRA UNIVA 2025</span>
+            <div className="logo-pill">P</div>
+            <span className="topbar-text">PEMIRA UNIWA 2025</span>
           </div>
         </div>
       </header>
 
       <main className="login-main">
-        <div className="login-container">
-          <div className="login-left premium-left" ref={leftPanelRef}>
-            <div className="info-panel">
-              <h2>Info Penting</h2>
+        <div className="auth-shell fade-in-up">
+          <div className="auth-heading">
+            <p className="eyebrow">PENDAFTARAN</p>
+            <h1>Daftar Pemilih</h1>
+            <p className="heading-sub">Isi data sesuai identitas kampus Anda.</p>
+          </div>
+
+          <details className="info-accordion">
+            <summary>
+              <span>ℹ️ Info penting</span>
+              <span className="accordion-icon">+</span>
+            </summary>
+            <div className="accordion-body">
               <ul>
-                <li>Isi data sesuai NIM/akun kampus UNIWA.</li>
-                <li>Pilih satu mode pemilihan untuk menghindari kebingungan.</li>
-                <li>Password tidak ditampilkan di layar, gunakan yang Anda setel.</li>
+                <li>Isi data sesuai NIM/NIDN/NIP kampus UNIWA.</li>
+                <li>Pilih satu mode pemilihan agar tidak bingung.</li>
+                <li>Password tidak ditampilkan di layar, simpan di tempat aman.</li>
               </ul>
-              <p className="info-note">
-                {onlineNote} (Election ID: {ACTIVE_ELECTION_ID})
-              </p>
+            </div>
+          </details>
+
+          <div className="role-selector">
+            <span className="role-label">Daftar sebagai</span>
+            <div className="tab-row compact">
+              <button type="button" className={role === 'student' ? 'active' : ''} onClick={() => setRole('student')}>
+                Mahasiswa
+              </button>
+              <button type="button" className={role === 'lecturer' ? 'active' : ''} onClick={() => setRole('lecturer')}>
+                Dosen
+              </button>
+              <button type="button" className={role === 'staff' ? 'active' : ''} onClick={() => setRole('staff')}>
+                Staf
+              </button>
             </div>
           </div>
 
-          <div className="login-right">
-            <div className="login-card premium-card" ref={formCardRef}>
-              <div className="tab-row">
-                <button type="button" className={role === 'student' ? 'active' : ''} onClick={() => setRole('student')}>
-                  Mahasiswa
-                </button>
-                <button type="button" className={role === 'lecturer' ? 'active' : ''} onClick={() => setRole('lecturer')}>
-                  Dosen
-                </button>
-                <button type="button" className={role === 'staff' ? 'active' : ''} onClick={() => setRole('staff')}>
-                  Staf
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="login-form">
+          <div className="login-card premium-card" ref={formCardRef}>
+            <form onSubmit={handleSubmit} className="login-form">
+              <div className="section-block">
+                <div className="section-header">
+                  <p className="eyebrow">1. Data Pribadi</p>
+                  <h3>Data Pribadi</h3>
+                </div>
                 {role === 'student' ? (
                   <>
                     <label className="form-field">
@@ -359,10 +338,6 @@ const Register = (): JSX.Element => {
                     <label className="form-field">
                       <span className="field-label">{selectedProgramLabel}</span>
                       <input value={studentForm.program} onChange={(e) => setStudentForm((prev) => ({ ...prev, program: e.target.value }))} />
-                    </label>
-                    <label className="form-field">
-                      <span className="field-label">{selectedAngkatanLabel}</span>
-                      <input value={studentForm.angkatan} onChange={(e) => setStudentForm((prev) => ({ ...prev, angkatan: e.target.value }))} />
                     </label>
                     <label className="form-field">
                       <span className="field-label">Fakultas</span>
@@ -388,16 +363,20 @@ const Register = (): JSX.Element => {
                     </label>
                     <label className="form-field">
                       <span className="field-label">{selectedSemesterLabel}</span>
-                      <input value={studentForm.semester} onChange={(e) => setStudentForm((prev) => ({ ...prev, semester: e.target.value }))} />
+                      <select
+                        value={studentForm.semester}
+                        onChange={(e) => setStudentForm((prev) => ({ ...prev, semester: e.target.value }))}
+                        required
+                      >
+                        <option value="">Pilih semester</option>
+                        <option value="1">Semester 1</option>
+                        <option value="3">Semester 3</option>
+                        <option value="5">Semester 5</option>
+                        <option value="7">Semester 7</option>
+                        <option value="9">Semester 9</option>
+                      </select>
                     </label>
-                    <label className="form-field">
-                      <span className="field-label">Email UNIWA</span>
-                      <input type="email" value={studentForm.email} onChange={(e) => setStudentForm((prev) => ({ ...prev, email: e.target.value }))} required />
-                    </label>
-                    <label className="form-field">
-                      <span className="field-label">Password</span>
-                      <input type="password" value={studentForm.password} onChange={(e) => setStudentForm((prev) => ({ ...prev, password: e.target.value }))} required />
-                    </label>
+                    <p className="microcopy">Gunakan data sesuai sistem akademik kampus.</p>
                   </>
                 ) : (
                   <>
@@ -431,23 +410,56 @@ const Register = (): JSX.Element => {
                         ))}
                       </select>
                     </label>
-                    <label className="form-field">
-                      <span className="field-label">{selectedSemesterLabel}</span>
-                      <input value={staffForm.semester} onChange={(e) => setStaffForm((prev) => ({ ...prev, semester: e.target.value }))} />
-                    </label>
-                    <label className="form-field">
-                      <span className="field-label">Email UNIWA</span>
-                      <input type="email" value={staffForm.email} onChange={(e) => setStaffForm((prev) => ({ ...prev, email: e.target.value }))} required />
-                    </label>
-                    <label className="form-field">
-                      <span className="field-label">Password</span>
-                      <input type="password" value={staffForm.password} onChange={(e) => setStaffForm((prev) => ({ ...prev, password: e.target.value }))} required />
-                    </label>
+                    <p className="microcopy">Gunakan data sesuai sistem akademik kampus.</p>
                   </>
                 )}
+              </div>
 
-                <fieldset className="mode-fieldset">
-                  <legend>Pilih Mode Pemilihan</legend>
+              <div className="section-block">
+                <div className="section-header">
+                  <p className="eyebrow">2. Akun Login</p>
+                  <h3>Akun & Keamanan</h3>
+                </div>
+                <label className="form-field">
+                  <span className="field-label">Email UNIWA</span>
+                  <input
+                    type="email"
+                    value={role === 'student' ? studentForm.email : staffForm.email}
+                    onChange={(e) =>
+                      role === 'student'
+                        ? setStudentForm((prev) => ({ ...prev, email: e.target.value }))
+                        : setStaffForm((prev) => ({ ...prev, email: e.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label className="form-field">
+                  <span className="field-label">Password</span>
+                  <div className="password-field">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={role === 'student' ? studentForm.password : staffForm.password}
+                      onChange={(e) =>
+                        role === 'student'
+                          ? setStudentForm((prev) => ({ ...prev, password: e.target.value }))
+                          : setStaffForm((prev) => ({ ...prev, password: e.target.value }))
+                      }
+                      required
+                    />
+                    <button type="button" className="btn-ghost" onClick={() => setShowPassword((prev) => !prev)}>
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </label>
+              </div>
+
+              <div className="section-block">
+                <div className="section-header">
+                  <p className="eyebrow">3. Pilih Mode Pemilihan</p>
+                  <h3>Mode Pemilihan</h3>
+                </div>
+                <fieldset className="mode-fieldset compact">
+                  <legend className="sr-only">Pilih Mode</legend>
                   <label className="radio-row">
                     <input type="radio" name="mode" value="online" checked={mode === 'online'} onChange={() => setMode('online')} />
                     <div>
@@ -463,28 +475,24 @@ const Register = (): JSX.Element => {
                     </div>
                   </label>
                 </fieldset>
+                <p className="info-note">{onlineNote}</p>
+              </div>
 
-                <label className="checkbox-row">
-                  <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-                  <span>Saya menyatakan data yang saya isi benar</span>
-                </label>
+              <label className="checkbox-row">
+                <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+                <span>Saya menyatakan data yang saya isi benar</span>
+              </label>
 
-                {error && <div className="error-box">{error}</div>}
+              {error && <div className="error-box">{error}</div>}
 
-                <button type="submit" className="btn-primary" disabled={!canSubmit}>
-                  {loading ? 'Memproses...' : 'Daftar Sekarang'}
-                </button>
-                <p className="helper">
-                  Sudah punya akun? <a href="/login">Masuk</a>
-                </p>
-              </form>
-            </div>
+              <button type="submit" className="btn-primary btn-full" disabled={!canSubmit}>
+                {loading ? 'Memproses...' : 'Daftar & Simpan Mode'}
+              </button>
+              <p className="helper">
+                Sudah punya akun? <a href="/login">Masuk</a>
+              </p>
+            </form>
           </div>
-        </div>
-        <div className="sticky-cta" ref={stickyCtaRef}>
-          <button className="btn-primary sticky-cta-btn" disabled={!canSubmit} onClick={handleSubmit}>
-            {loading ? 'Memproses...' : 'Daftar & Pilih Mode'}
-          </button>
         </div>
       </main>
     </div>

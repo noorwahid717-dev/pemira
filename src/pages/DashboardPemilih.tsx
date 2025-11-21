@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { mockCandidates } from '../data/mockCandidates'
 import { useVotingSession } from '../hooks/useVotingSession'
@@ -129,17 +129,19 @@ const DashboardPemilih = (): JSX.Element => {
   const modeVoting = election ? [election.online_enabled && 'Online', election.tps_enabled && 'TPS'].filter(Boolean).join(' & ') || 'Belum ditetapkan' : '—'
   const periodeVoting = election ? formatDateRange(election.voting_start_at, election.voting_end_at) : '—'
   const kandidatPreview = candidates.slice(0, 2)
-  const voteData = hasVoted ? (() => {
-    const raw = sessionStorage.getItem('voteData')
-    if (!raw) return null
-    try {
-      return JSON.parse(raw) as { token?: string }
-    } catch {
-      return null
-    }
-  })() : null
+  const voteData = hasVoted
+    ? (() => {
+        const raw = sessionStorage.getItem('voteData')
+        if (!raw) return null
+        try {
+          return JSON.parse(raw) as { token?: string }
+        } catch {
+          return null
+        }
+      })()
+    : null
 
-  const banner = useMemo<BannerContent>(() => {
+  const banner: BannerContent = (() => {
     if (statusLoading) {
       return {
         type: 'info',
@@ -209,7 +211,7 @@ const DashboardPemilih = (): JSX.Element => {
       description: 'Silakan pilih salah satu metode di bawah.',
       showCTA: true,
     }
-  }, [statusLoading, statusError, election, showNotEligible, hasVoted, isVotingOpen, lastVoteTime, methodLabel, periodeVoting])
+  })()
 
   const handleStartVotingOnline = () => {
     if (!canOnline || hasVoted) return

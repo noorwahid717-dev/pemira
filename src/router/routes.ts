@@ -28,6 +28,7 @@ import AdminTPSDetail from '../pages/AdminTPSDetail'
 import AdminDPTList from '../pages/AdminDPTList'
 import AdminDPTImport from '../pages/AdminDPTImport'
 import AdminDPTDetail from '../pages/AdminDPTDetail'
+import Panduan from '../pages/Panduan'
 
 export type RouteDefinition = {
   id: string
@@ -40,6 +41,7 @@ export type RouteDefinition = {
 
 export const appRoutes: RouteDefinition[] = [
   { id: 'landing', path: '/', Component: LandingPage },
+  { id: 'panduan', path: '/panduan', Component: Panduan },
   { id: 'demo-accounts', path: '/demo', Component: DemoAccounts, publicOnly: true },
   { id: 'login', path: '/login', Component: LoginMahasiswa, publicOnly: true },
   { id: 'register', path: '/register', Component: Register, publicOnly: true },

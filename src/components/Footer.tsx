@@ -19,13 +19,13 @@ const Footer = (): JSX.Element => (
             <h4>Informasi</h4>
             <a href="#tentang">Tentang</a>
             <a href="#kandidat">Kandidat</a>
-            <a href="#panduan">Panduan</a>
+            <a href="#tentang">Jadwal Pemilu</a>
           </div>
           <div className="footer-column">
             <h4>Bantuan</h4>
-            <a href="#tutorial">Tutorial Voting</a>
+            <a href="/panduan">Tutorial Voting</a>
             <a href="#faq">FAQ</a>
-            <a href="#kontak">Kontak Panitia</a>
+            <a href="/panduan">Lokasi TPS</a>
           </div>
           <div className="footer-column">
             <h4>Legal</h4>

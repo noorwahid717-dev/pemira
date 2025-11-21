@@ -13,6 +13,7 @@ const LandingPage = () => {
   const [election, setElection] = useState<PublicElection | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const displayError = error && !error.toLowerCase().includes('pemilu aktif') ? error : null
 
   useEffect(() => {
     const controller = new AbortController()
@@ -40,15 +41,15 @@ const LandingPage = () => {
   return (
     <div className="app">
       <Header />
-      <HeroSection election={election} loading={loading} error={error} />
+      <HeroSection election={election} loading={loading} error={displayError} />
+      <CandidatesPreview />
       <StagesSection />
       <VotingModeSection
         onlineEnabled={Boolean(election?.online_enabled)}
         tpsEnabled={Boolean(election?.tps_enabled)}
         loading={loading}
-        error={error}
+        error={displayError}
       />
-      <CandidatesPreview />
       <FAQSection />
       <Footer />
     </div>

@@ -19,7 +19,7 @@ const CandidatesPreview = (): JSX.Element => {
       })
       .catch((err) => {
         console.warn('Using mock candidates, failed to load API', err)
-        setError('Menampilkan data sementara.')
+        setError('Tidak dapat memuat data saat ini. Coba lagi beberapa saat.')
       })
     return () => controller.abort()
   }, [session?.accessToken])
@@ -28,6 +28,7 @@ const CandidatesPreview = (): JSX.Element => {
     <section className="candidates-preview" id="kandidat">
       <div className="candidates-container">
         <h2 className="section-title">Calon Ketua BEM</h2>
+        <p className="section-subtitle">Kenali visi, misi, dan profil setiap kandidat sebelum menentukan pilihan Anda.</p>
         {error && <p className="error-text">{error}</p>}
 
         <div className="candidates-grid">
