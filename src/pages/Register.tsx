@@ -5,6 +5,7 @@ import { loginUser, registerLecturerOrStaff, registerStudent, type RegisterRespo
 import { getVoterQr, rotateVoterQr } from '../services/voterQr'
 import { useVotingSession } from '../hooks/useVotingSession'
 import { ACTIVE_ELECTION_ID } from '../config/env'
+import { fetchFacultiesPrograms, type FacultyProgram } from '../services/meta'
 import type { ApiError } from '../utils/apiClient'
 import '../styles/LoginMahasiswa.css'
 
@@ -31,8 +32,9 @@ const Register = (): JSX.Element => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [studentForm, setStudentForm] = useState({ nim: '', name: '', email: '', password: '', program: '', angkatan: '', faculty: '' })
-  const [staffForm, setStaffForm] = useState({ username: '', name: '', email: '', password: '', program: '', angkatan: '', faculty: '' })
+  const [studentForm, setStudentForm] = useState({ nim: '', name: '', email: '', password: '', program: '', semester: '', faculty: '' })
+  const [staffForm, setStaffForm] = useState({ username: '', name: '', email: '', password: '', program: '', semester: '', faculty: '' })
+  const [metaOptions, setMetaOptions] = useState<FacultyProgram[]>([])
 
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [qrDataUri, setQrDataUri] = useState<string | null>(null)
@@ -89,6 +91,12 @@ const Register = (): JSX.Element => {
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('scroll', onScroll)
     }
+  }, [])
+
+  useEffect(() => {
+    fetchFacultiesPrograms()
+      .then((res) => setMetaOptions(res.data ?? []))
+      .catch(() => setMetaOptions([]))
   }, [])
 
   useEffect(() => {
@@ -157,7 +165,7 @@ const Register = (): JSX.Element => {
           password: studentForm.password,
           faculty_name: studentForm.faculty.trim(),
           study_program_name: studentForm.program.trim(),
-          cohort_year: studentForm.angkatan ? Number(studentForm.angkatan) : undefined,
+          semester: studentForm.semester ? Number(studentForm.semester) : undefined,
           voting_mode: mode === 'tps' ? 'TPS' : 'ONLINE',
         })
         await handleRegisterSuccess(res, studentForm.nim.trim(), studentForm.password)
@@ -289,7 +297,12 @@ const Register = (): JSX.Element => {
     )
 
   const selectedProgramLabel = role === 'student' ? 'Program Studi' : role === 'lecturer' ? 'Departemen' : 'Unit'
-  const selectedAngkatanLabel = role === 'student' ? 'Angkatan' : 'Tahun Masuk'
+  const selectedSemesterLabel = role === 'student' ? 'Semester' : 'Semester / Tahun Masuk'
+  const facultyOptions = metaOptions.map((item) => item.faculty_name)
+  const programOptions =
+    role === 'student'
+      ? metaOptions.find((item) => item.faculty_name === studentForm.faculty)?.programs ?? []
+      : metaOptions.find((item) => item.faculty_name === staffForm.faculty)?.programs ?? []
 
   return (
     <div className="login-page premium-page">
@@ -353,7 +366,29 @@ const Register = (): JSX.Element => {
                     </label>
                     <label className="form-field">
                       <span className="field-label">Fakultas</span>
-                      <input value={studentForm.faculty} onChange={(e) => setStudentForm((prev) => ({ ...prev, faculty: e.target.value }))} />
+                      <select value={studentForm.faculty} onChange={(e) => setStudentForm((prev) => ({ ...prev, faculty: e.target.value, program: '' }))}>
+                        <option value="">Pilih Fakultas</option>
+                        {facultyOptions.map((fac) => (
+                          <option key={fac} value={fac}>
+                            {fac}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="form-field">
+                      <span className="field-label">{selectedProgramLabel}</span>
+                      <select value={studentForm.program} onChange={(e) => setStudentForm((prev) => ({ ...prev, program: e.target.value }))} disabled={!studentForm.faculty}>
+                        <option value="">{studentForm.faculty ? 'Pilih Program Studi' : 'Pilih fakultas dahulu'}</option>
+                        {programOptions.map((prog) => (
+                          <option key={prog} value={prog}>
+                            {prog}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="form-field">
+                      <span className="field-label">{selectedSemesterLabel}</span>
+                      <input value={studentForm.semester} onChange={(e) => setStudentForm((prev) => ({ ...prev, semester: e.target.value }))} />
                     </label>
                     <label className="form-field">
                       <span className="field-label">Email UNIWA</span>
@@ -375,16 +410,30 @@ const Register = (): JSX.Element => {
                       <input value={staffForm.username} onChange={(e) => setStaffForm((prev) => ({ ...prev, username: e.target.value }))} required />
                     </label>
                     <label className="form-field">
-                      <span className="field-label">{selectedProgramLabel}</span>
-                      <input value={staffForm.program} onChange={(e) => setStaffForm((prev) => ({ ...prev, program: e.target.value }))} />
-                    </label>
-                    <label className="form-field">
-                      <span className="field-label">{selectedAngkatanLabel}</span>
-                      <input value={staffForm.angkatan} onChange={(e) => setStaffForm((prev) => ({ ...prev, angkatan: e.target.value }))} />
-                    </label>
-                    <label className="form-field">
                       <span className="field-label">Fakultas / Unit</span>
-                      <input value={staffForm.faculty} onChange={(e) => setStaffForm((prev) => ({ ...prev, faculty: e.target.value }))} />
+                      <select value={staffForm.faculty} onChange={(e) => setStaffForm((prev) => ({ ...prev, faculty: e.target.value, program: '' }))}>
+                        <option value="">Pilih Fakultas/Unit</option>
+                        {facultyOptions.map((fac) => (
+                          <option key={fac} value={fac}>
+                            {fac}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="form-field">
+                      <span className="field-label">{selectedProgramLabel}</span>
+                      <select value={staffForm.program} onChange={(e) => setStaffForm((prev) => ({ ...prev, program: e.target.value }))} disabled={!staffForm.faculty}>
+                        <option value="">{staffForm.faculty ? 'Pilih Program/Unit' : 'Pilih fakultas dahulu'}</option>
+                        {programOptions.map((prog) => (
+                          <option key={prog} value={prog}>
+                            {prog}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="form-field">
+                      <span className="field-label">{selectedSemesterLabel}</span>
+                      <input value={staffForm.semester} onChange={(e) => setStaffForm((prev) => ({ ...prev, semester: e.target.value }))} />
                     </label>
                     <label className="form-field">
                       <span className="field-label">Email UNIWA</span>

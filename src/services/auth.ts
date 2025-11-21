@@ -36,7 +36,7 @@ export const registerStudent = (payload: {
   password: string
   faculty_name?: string
   study_program_name?: string
-  cohort_year?: number
+  semester?: number
   voting_mode?: 'ONLINE' | 'TPS'
 }) =>
   apiRequest<RegisterResponse>('/auth/register/student', {
