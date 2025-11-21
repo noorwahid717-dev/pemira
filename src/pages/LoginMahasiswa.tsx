@@ -82,15 +82,12 @@ const LoginMahasiswa = (): JSX.Element => {
 
   return (
     <div className="login-page premium-page">
-      <header className="login-hero" ref={headerRef}>
-        <div className="login-hero-inner">
-          <div className="hero-logos">
-            <div className="hero-logo">PEMIRA</div>
-            <div className="hero-logo muted">UNIVA</div>
+      <header className="login-topbar" ref={headerRef}>
+        <div className="topbar-inner">
+          <div className="topbar-left">
+            <div className="logo-pill">PEMIRA</div>
+            <span className="topbar-text">PEMIRA UNIVA 2025</span>
           </div>
-          <p className="badge">PEMIRA UNIVA 2025</p>
-          <h1>Masuk untuk Mengikuti Pemilihan</h1>
-          <p className="subcopy">Gunakan kredensial yang telah Anda daftarkan melalui sistem PEMIRA.</p>
         </div>
       </header>
 
@@ -117,29 +114,27 @@ const LoginMahasiswa = (): JSX.Element => {
                 <p className="card-subtitle">Masukkan kredensial untuk mengakses bilik suara online.</p>
               </div>
               <form onSubmit={handleSubmit} className="login-form">
-                <label>
-                  <input name="username" placeholder=" " value={formData.username} onChange={handleInputChange} autoComplete="username" required />
-                  <span className="floating-label">Username / Email UNIVA</span>
+                <label className="form-field">
+                  <span className="field-label">Username / Email UNIVA</span>
+                  <input name="username" value={formData.username} onChange={handleInputChange} autoComplete="username" required />
                 </label>
-                <label>
+                <label className="form-field">
+                  <span className="field-label">Password</span>
                   <div className="password-field">
                     <input
                       name="password"
                       type={showPassword ? 'text' : 'password'}
-                      placeholder=" "
                       value={formData.password}
                       onChange={handleInputChange}
                       autoComplete="current-password"
                       required
                     />
-                    <span className="floating-label">Password</span>
                     <button type="button" className="btn-ghost" onClick={() => setShowPassword((prev) => !prev)}>
                       {showPassword ? 'Hide' : 'Show'}
                     </button>
                   </div>
+                  {error && <p className="field-error">{error}</p>}
                 </label>
-
-                {error && <div className="error-box">{error}</div>}
 
                 <p className="micro-security">Pastikan Anda mengakses dari perangkat yang aman.</p>
 

@@ -219,33 +219,16 @@
   gap: 1.5rem;
 }
 
-.login-form label {
-  display: block;
-  position: relative;
-  padding-top: 1.2rem;
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
-.login-form label input {
-  width: 100%;
-}
-
-.login-form label span.floating-label {
-  position: absolute;
-  left: 0.75rem;
-  top: 1.05rem;
-  font-size: 0.95rem;
-  color: #64748b;
-  transition: all 0.15s ease;
-  pointer-events: none;
-  background: white;
-  padding: 0 0.25rem;
-}
-
-.login-form label input:focus + span.floating-label,
-.login-form label input:not(:placeholder-shown) + span.floating-label {
-  top: -0.4rem;
-  font-size: 0.8rem;
-  color: #4338ca;
+.field-label {
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  color: var(--neutral-700);
 }
 
 .info-note {
@@ -298,6 +281,46 @@
 
 .radio-row:has(input:not(:checked)) {
   opacity: 0.9;
+}
+
+.mode-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.mode-card {
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: white;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--motion-normal) var(--ease-soft), box-shadow var(--motion-normal) var(--ease-soft), border var(--motion-normal) var(--ease-soft);
+  cursor: pointer;
+}
+
+.mode-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.mode-card.selected {
+  border: 1px solid var(--brand-primary);
+  background: var(--neutral-50);
+  box-shadow: var(--shadow-lg);
+}
+
+.mode-title {
+  font-weight: var(--weight-semibold);
+  color: var(--neutral-900);
+  margin-bottom: var(--space-2);
+}
+
+.mode-desc {
+  color: var(--neutral-600);
+  font-size: var(--font-sm);
+  margin: 0;
 }
 .radio-title {
   font-weight: 700;
@@ -952,7 +975,8 @@
   display: block;
 }
 
-.login-form input {
+.login-form input,
+.form-field input {
   width: 100%;
   border: var(--border-default);
   border-radius: var(--radius-md);
@@ -962,30 +986,11 @@
   box-shadow: var(--shadow-xs);
 }
 
-.login-form input:focus {
+.login-form input:focus,
+.form-field input:focus {
   outline: none;
   border: var(--border-focus);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-}
-
-.floating-label {
-  position: absolute;
-  left: var(--space-3);
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--neutral-500);
-  pointer-events: none;
-  transition: all var(--motion-fast) var(--ease-soft);
-  background: white;
-  padding: 0 var(--space-1);
-  font-size: var(--font-sm);
-}
-
-.login-form input:focus + .floating-label,
-.login-form input:not(:placeholder-shown) + .floating-label {
-  top: -6px;
-  font-size: var(--font-xs);
-  color: var(--brand-primary);
 }
 
 .password-field {

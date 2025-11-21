@@ -293,25 +293,20 @@ const Register = (): JSX.Element => {
 
   return (
     <div className="login-page premium-page">
-      <header className="login-header" ref={heroRef}>
-        <div className="login-header-container hero-animated">
-          <div>
-            <p className="badge">PEMIRA UNIWA</p>
-            <h1>Pendaftaran Pemilih</h1>
-            <p>Pilih mode pemilihan: Online atau Offline (TPS).</p>
+      <header className="login-topbar" ref={heroRef}>
+        <div className="topbar-inner">
+          <div className="topbar-left">
+            <div className="logo-pill">PEMIRA</div>
+            <span className="topbar-text">PEMIRA UNIVA 2025</span>
           </div>
-          <img src="/assets/login-illustration.svg" alt="Ilustrasi" />
         </div>
       </header>
 
       <main className="login-main">
         <div className="login-container">
           <div className="login-left premium-left" ref={leftPanelRef}>
-            <div className="login-illustration">
-              <img src="/assets/login-illustration.svg" alt="Pemilu" />
-            </div>
-            <div className="login-info">
-              <h2>Ketentuan</h2>
+            <div className="info-panel">
+              <h2>Info Penting</h2>
               <ul>
                 <li>Isi data sesuai NIM/akun kampus UNIWA.</li>
                 <li>Pilih satu mode pemilihan untuk menghindari kebingungan.</li>
@@ -340,64 +335,64 @@ const Register = (): JSX.Element => {
               <form onSubmit={handleSubmit} className="login-form">
                 {role === 'student' ? (
                   <>
-                    <label>
-                      <input placeholder=" " value={studentForm.name} onChange={(e) => setStudentForm((prev) => ({ ...prev, name: e.target.value }))} required />
-                      <span className="floating-label">Nama Lengkap</span>
+                    <label className="form-field">
+                      <span className="field-label">Nama Lengkap</span>
+                      <input value={studentForm.name} onChange={(e) => setStudentForm((prev) => ({ ...prev, name: e.target.value }))} required />
                     </label>
-                    <label>
-                      <input placeholder=" " value={studentForm.nim} onChange={(e) => setStudentForm((prev) => ({ ...prev, nim: e.target.value }))} required />
-                      <span className="floating-label">NIM Mahasiswa</span>
+                    <label className="form-field">
+                      <span className="field-label">NIM Mahasiswa</span>
+                      <input value={studentForm.nim} onChange={(e) => setStudentForm((prev) => ({ ...prev, nim: e.target.value }))} required />
                     </label>
-                    <label>
-                      <input placeholder=" " value={studentForm.program} onChange={(e) => setStudentForm((prev) => ({ ...prev, program: e.target.value }))} />
-                      <span className="floating-label">{selectedProgramLabel}</span>
+                    <label className="form-field">
+                      <span className="field-label">{selectedProgramLabel}</span>
+                      <input value={studentForm.program} onChange={(e) => setStudentForm((prev) => ({ ...prev, program: e.target.value }))} />
                     </label>
-                    <label>
-                      <input placeholder=" " value={studentForm.angkatan} onChange={(e) => setStudentForm((prev) => ({ ...prev, angkatan: e.target.value }))} />
-                      <span className="floating-label">{selectedAngkatanLabel}</span>
+                    <label className="form-field">
+                      <span className="field-label">{selectedAngkatanLabel}</span>
+                      <input value={studentForm.angkatan} onChange={(e) => setStudentForm((prev) => ({ ...prev, angkatan: e.target.value }))} />
                     </label>
-                    <label>
-                      <input placeholder=" " value={studentForm.faculty} onChange={(e) => setStudentForm((prev) => ({ ...prev, faculty: e.target.value }))} />
-                      <span className="floating-label">Fakultas</span>
+                    <label className="form-field">
+                      <span className="field-label">Fakultas</span>
+                      <input value={studentForm.faculty} onChange={(e) => setStudentForm((prev) => ({ ...prev, faculty: e.target.value }))} />
                     </label>
-                    <label>
-                      <input placeholder=" " type="email" value={studentForm.email} onChange={(e) => setStudentForm((prev) => ({ ...prev, email: e.target.value }))} required />
-                      <span className="floating-label">Email UNIWA</span>
+                    <label className="form-field">
+                      <span className="field-label">Email UNIWA</span>
+                      <input type="email" value={studentForm.email} onChange={(e) => setStudentForm((prev) => ({ ...prev, email: e.target.value }))} required />
                     </label>
-                    <label>
-                      <input placeholder=" " type="password" value={studentForm.password} onChange={(e) => setStudentForm((prev) => ({ ...prev, password: e.target.value }))} required />
-                      <span className="floating-label">Password</span>
+                    <label className="form-field">
+                      <span className="field-label">Password</span>
+                      <input type="password" value={studentForm.password} onChange={(e) => setStudentForm((prev) => ({ ...prev, password: e.target.value }))} required />
                     </label>
                   </>
                 ) : (
                   <>
-                    <label>
-                      <input placeholder=" " value={staffForm.name} onChange={(e) => setStaffForm((prev) => ({ ...prev, name: e.target.value }))} required />
-                      <span className="floating-label">Nama Lengkap</span>
+                    <label className="form-field">
+                      <span className="field-label">Nama Lengkap</span>
+                      <input value={staffForm.name} onChange={(e) => setStaffForm((prev) => ({ ...prev, name: e.target.value }))} required />
                     </label>
-                    <label>
-                      <input placeholder=" " value={staffForm.username} onChange={(e) => setStaffForm((prev) => ({ ...prev, username: e.target.value }))} required />
-                      <span className="floating-label">Username {role === 'lecturer' ? '(NIDN)' : '(NIP)'}</span>
+                    <label className="form-field">
+                      <span className="field-label">Username {role === 'lecturer' ? '(NIDN)' : '(NIP)'}</span>
+                      <input value={staffForm.username} onChange={(e) => setStaffForm((prev) => ({ ...prev, username: e.target.value }))} required />
                     </label>
-                    <label>
-                      <input placeholder=" " value={staffForm.program} onChange={(e) => setStaffForm((prev) => ({ ...prev, program: e.target.value }))} />
-                      <span className="floating-label">{selectedProgramLabel}</span>
+                    <label className="form-field">
+                      <span className="field-label">{selectedProgramLabel}</span>
+                      <input value={staffForm.program} onChange={(e) => setStaffForm((prev) => ({ ...prev, program: e.target.value }))} />
                     </label>
-                    <label>
-                      <input placeholder=" " value={staffForm.angkatan} onChange={(e) => setStaffForm((prev) => ({ ...prev, angkatan: e.target.value }))} />
-                      <span className="floating-label">{selectedAngkatanLabel}</span>
+                    <label className="form-field">
+                      <span className="field-label">{selectedAngkatanLabel}</span>
+                      <input value={staffForm.angkatan} onChange={(e) => setStaffForm((prev) => ({ ...prev, angkatan: e.target.value }))} />
                     </label>
-                    <label>
-                      <input placeholder=" " value={staffForm.faculty} onChange={(e) => setStaffForm((prev) => ({ ...prev, faculty: e.target.value }))} />
-                      <span className="floating-label">Fakultas / Unit</span>
+                    <label className="form-field">
+                      <span className="field-label">Fakultas / Unit</span>
+                      <input value={staffForm.faculty} onChange={(e) => setStaffForm((prev) => ({ ...prev, faculty: e.target.value }))} />
                     </label>
-                    <label>
-                      <input placeholder=" " type="email" value={staffForm.email} onChange={(e) => setStaffForm((prev) => ({ ...prev, email: e.target.value }))} required />
-                      <span className="floating-label">Email UNIWA</span>
+                    <label className="form-field">
+                      <span className="field-label">Email UNIWA</span>
+                      <input type="email" value={staffForm.email} onChange={(e) => setStaffForm((prev) => ({ ...prev, email: e.target.value }))} required />
                     </label>
-                    <label>
-                      <input placeholder=" " type="password" value={staffForm.password} onChange={(e) => setStaffForm((prev) => ({ ...prev, password: e.target.value }))} required />
-                      <span className="floating-label">Password</span>
+                    <label className="form-field">
+                      <span className="field-label">Password</span>
+                      <input type="password" value={staffForm.password} onChange={(e) => setStaffForm((prev) => ({ ...prev, password: e.target.value }))} required />
                     </label>
                   </>
                 )}
