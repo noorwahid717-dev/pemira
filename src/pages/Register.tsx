@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BrowserQRCodeSvgWriter } from '@zxing/library'
 import { loginUser, registerLecturerOrStaff, registerStudent, type RegisterResponse } from '../services/auth'
@@ -37,6 +37,59 @@ const Register = (): JSX.Element => {
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [qrDataUri, setQrDataUri] = useState<string | null>(null)
   const [lastIdentity, setLastIdentity] = useState<{ username: string; mode: Mode; voterId?: number | null }>({ username: '', mode: 'online' })
+
+  const heroRef = useRef<HTMLDivElement | null>(null)
+  const formCardRef = useRef<HTMLDivElement | null>(null)
+  const leftPanelRef = useRef<HTMLDivElement | null>(null)
+  const stickyCtaRef = useRef<HTMLDivElement | null>(null)
+  const lastScrollY = useRef<number>(0)
+
+  useEffect(() => {
+    const hero = heroRef.current
+    const card = formCardRef.current
+    const left = leftPanelRef.current
+    const sticky = stickyCtaRef.current
+
+    const reveal = (el: HTMLElement | null, delay = 0) => {
+      if (!el) return
+      el.style.transitionDelay = `${delay}ms`
+      el.classList.add('reveal-in')
+    }
+    reveal(hero, 50)
+    reveal(card, 150)
+    reveal(left, 100)
+    if (sticky) sticky.classList.add('sticky-cta-show')
+
+    const onMouseMove = (event: MouseEvent) => {
+      if (!left) return
+      const rect = left.getBoundingClientRect()
+      const offsetX = ((event.clientX - rect.left) / rect.width - 0.5) * 8
+      const offsetY = ((event.clientY - rect.top) / rect.height - 0.5) * 8
+      left.style.setProperty('--parallax-x', `${offsetX}px`)
+      left.style.setProperty('--parallax-y', `${offsetY}px`)
+    }
+    window.addEventListener('mousemove', onMouseMove)
+
+    const onScroll = () => {
+      const current = window.scrollY
+      if (!sticky) return
+      const goingDown = current > lastScrollY.current
+      if (goingDown) {
+        sticky.classList.add('sticky-cta-hide')
+        sticky.classList.remove('sticky-cta-show')
+      } else {
+        sticky.classList.remove('sticky-cta-hide')
+        sticky.classList.add('sticky-cta-show')
+      }
+      lastScrollY.current = current
+    }
+    window.addEventListener('scroll', onScroll)
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('scroll', onScroll)
+    }
+  }, [])
 
   useEffect(() => {
     if (!qrToken) return
@@ -202,18 +255,46 @@ const Register = (): JSX.Element => {
     </div>
   )
 
-  if (step === 'success-online') return <div className="login-page">{renderSuccessOnline()}</div>
-  if (step === 'success-tps') return <div className="login-page">{renderSuccessTPS()}</div>
-  if (step === 'fallback-tps') return <div className="login-page">{renderFallbackTPS()}</div>
-  if (step === 'duplicate') return <div className="login-page">{renderDuplicate()}</div>
+  if (step === 'success-online')
+    return (
+      <div className="login-page premium-page">
+        <div className="login-main success-state">
+          {renderSuccessOnline()}
+        </div>
+      </div>
+    )
+  if (step === 'success-tps')
+    return (
+      <div className="login-page premium-page">
+        <div className="login-main success-state">
+          {renderSuccessTPS()}
+        </div>
+      </div>
+    )
+  if (step === 'fallback-tps')
+    return (
+      <div className="login-page premium-page">
+        <div className="login-main success-state">
+          {renderFallbackTPS()}
+        </div>
+      </div>
+    )
+  if (step === 'duplicate')
+    return (
+      <div className="login-page premium-page">
+        <div className="login-main success-state">
+          {renderDuplicate()}
+        </div>
+      </div>
+    )
 
   const selectedProgramLabel = role === 'student' ? 'Program Studi' : role === 'lecturer' ? 'Departemen' : 'Unit'
   const selectedAngkatanLabel = role === 'student' ? 'Angkatan' : 'Tahun Masuk'
 
   return (
-    <div className="login-page">
-      <header className="login-header">
-        <div className="login-header-container">
+    <div className="login-page premium-page">
+      <header className="login-header" ref={heroRef}>
+        <div className="login-header-container hero-animated">
           <div>
             <p className="badge">PEMIRA UNIWA</p>
             <h1>Pendaftaran Pemilih</h1>
@@ -225,7 +306,7 @@ const Register = (): JSX.Element => {
 
       <main className="login-main">
         <div className="login-container">
-          <div className="login-left">
+          <div className="login-left premium-left" ref={leftPanelRef}>
             <div className="login-illustration">
               <img src="/assets/login-illustration.svg" alt="Pemilu" />
             </div>
@@ -243,7 +324,7 @@ const Register = (): JSX.Element => {
           </div>
 
           <div className="login-right">
-            <div className="login-card">
+            <div className="login-card premium-card" ref={formCardRef}>
               <div className="tab-row">
                 <button type="button" className={role === 'student' ? 'active' : ''} onClick={() => setRole('student')}>
                   Mahasiswa
@@ -260,63 +341,63 @@ const Register = (): JSX.Element => {
                 {role === 'student' ? (
                   <>
                     <label>
-                      Nama Lengkap
-                      <input value={studentForm.name} onChange={(e) => setStudentForm((prev) => ({ ...prev, name: e.target.value }))} required />
+                      <input placeholder=" " value={studentForm.name} onChange={(e) => setStudentForm((prev) => ({ ...prev, name: e.target.value }))} required />
+                      <span className="floating-label">Nama Lengkap</span>
                     </label>
                     <label>
-                      NIM Mahasiswa
-                      <input value={studentForm.nim} onChange={(e) => setStudentForm((prev) => ({ ...prev, nim: e.target.value }))} required />
+                      <input placeholder=" " value={studentForm.nim} onChange={(e) => setStudentForm((prev) => ({ ...prev, nim: e.target.value }))} required />
+                      <span className="floating-label">NIM Mahasiswa</span>
                     </label>
                     <label>
-                      {selectedProgramLabel}
-                      <input value={studentForm.program} onChange={(e) => setStudentForm((prev) => ({ ...prev, program: e.target.value }))} />
+                      <input placeholder=" " value={studentForm.program} onChange={(e) => setStudentForm((prev) => ({ ...prev, program: e.target.value }))} />
+                      <span className="floating-label">{selectedProgramLabel}</span>
                     </label>
                     <label>
-                      {selectedAngkatanLabel}
-                      <input value={studentForm.angkatan} onChange={(e) => setStudentForm((prev) => ({ ...prev, angkatan: e.target.value }))} />
+                      <input placeholder=" " value={studentForm.angkatan} onChange={(e) => setStudentForm((prev) => ({ ...prev, angkatan: e.target.value }))} />
+                      <span className="floating-label">{selectedAngkatanLabel}</span>
                     </label>
                     <label>
-                      Fakultas
-                      <input value={studentForm.faculty} onChange={(e) => setStudentForm((prev) => ({ ...prev, faculty: e.target.value }))} />
+                      <input placeholder=" " value={studentForm.faculty} onChange={(e) => setStudentForm((prev) => ({ ...prev, faculty: e.target.value }))} />
+                      <span className="floating-label">Fakultas</span>
                     </label>
                     <label>
-                      Email UNIWA
-                      <input type="email" value={studentForm.email} onChange={(e) => setStudentForm((prev) => ({ ...prev, email: e.target.value }))} required />
+                      <input placeholder=" " type="email" value={studentForm.email} onChange={(e) => setStudentForm((prev) => ({ ...prev, email: e.target.value }))} required />
+                      <span className="floating-label">Email UNIWA</span>
                     </label>
                     <label>
-                      Password
-                      <input type="password" value={studentForm.password} onChange={(e) => setStudentForm((prev) => ({ ...prev, password: e.target.value }))} required />
+                      <input placeholder=" " type="password" value={studentForm.password} onChange={(e) => setStudentForm((prev) => ({ ...prev, password: e.target.value }))} required />
+                      <span className="floating-label">Password</span>
                     </label>
                   </>
                 ) : (
                   <>
                     <label>
-                      Nama Lengkap
-                      <input value={staffForm.name} onChange={(e) => setStaffForm((prev) => ({ ...prev, name: e.target.value }))} required />
+                      <input placeholder=" " value={staffForm.name} onChange={(e) => setStaffForm((prev) => ({ ...prev, name: e.target.value }))} required />
+                      <span className="floating-label">Nama Lengkap</span>
                     </label>
                     <label>
-                      Username {role === 'lecturer' ? '(NIDN)' : '(NIP)'}
-                      <input value={staffForm.username} onChange={(e) => setStaffForm((prev) => ({ ...prev, username: e.target.value }))} required />
+                      <input placeholder=" " value={staffForm.username} onChange={(e) => setStaffForm((prev) => ({ ...prev, username: e.target.value }))} required />
+                      <span className="floating-label">Username {role === 'lecturer' ? '(NIDN)' : '(NIP)'}</span>
                     </label>
                     <label>
-                      {selectedProgramLabel}
-                      <input value={staffForm.program} onChange={(e) => setStaffForm((prev) => ({ ...prev, program: e.target.value }))} />
+                      <input placeholder=" " value={staffForm.program} onChange={(e) => setStaffForm((prev) => ({ ...prev, program: e.target.value }))} />
+                      <span className="floating-label">{selectedProgramLabel}</span>
                     </label>
                     <label>
-                      {selectedAngkatanLabel}
-                      <input value={staffForm.angkatan} onChange={(e) => setStaffForm((prev) => ({ ...prev, angkatan: e.target.value }))} />
+                      <input placeholder=" " value={staffForm.angkatan} onChange={(e) => setStaffForm((prev) => ({ ...prev, angkatan: e.target.value }))} />
+                      <span className="floating-label">{selectedAngkatanLabel}</span>
                     </label>
                     <label>
-                      Fakultas / Unit
-                      <input value={staffForm.faculty} onChange={(e) => setStaffForm((prev) => ({ ...prev, faculty: e.target.value }))} />
+                      <input placeholder=" " value={staffForm.faculty} onChange={(e) => setStaffForm((prev) => ({ ...prev, faculty: e.target.value }))} />
+                      <span className="floating-label">Fakultas / Unit</span>
                     </label>
                     <label>
-                      Email UNIWA
-                      <input type="email" value={staffForm.email} onChange={(e) => setStaffForm((prev) => ({ ...prev, email: e.target.value }))} required />
+                      <input placeholder=" " type="email" value={staffForm.email} onChange={(e) => setStaffForm((prev) => ({ ...prev, email: e.target.value }))} required />
+                      <span className="floating-label">Email UNIWA</span>
                     </label>
                     <label>
-                      Password
-                      <input type="password" value={staffForm.password} onChange={(e) => setStaffForm((prev) => ({ ...prev, password: e.target.value }))} required />
+                      <input placeholder=" " type="password" value={staffForm.password} onChange={(e) => setStaffForm((prev) => ({ ...prev, password: e.target.value }))} required />
+                      <span className="floating-label">Password</span>
                     </label>
                   </>
                 )}
@@ -355,6 +436,11 @@ const Register = (): JSX.Element => {
               </form>
             </div>
           </div>
+        </div>
+        <div className="sticky-cta" ref={stickyCtaRef}>
+          <button className="btn-primary sticky-cta-btn" disabled={!canSubmit} onClick={handleSubmit}>
+            {loading ? 'Memproses...' : 'Daftar & Pilih Mode'}
+          </button>
         </div>
       </main>
     </div>

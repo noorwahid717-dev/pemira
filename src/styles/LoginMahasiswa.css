@@ -3,6 +3,10 @@
   background: linear-gradient(135deg, #f6f8fb 0%, #ffffff 100%);
 }
 
+.premium-page {
+  background: radial-gradient(circle at 10% 20%, rgba(102, 126, 234, 0.08), transparent 35%), radial-gradient(circle at 80% 0%, rgba(124, 58, 237, 0.08), transparent 40%), linear-gradient(135deg, #f8fbff 0%, #ffffff 100%);
+}
+
 .login-header {
   background: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -18,6 +22,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.login-header-container.hero-animated.reveal-in {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.45s ease, transform 0.45s ease;
 }
 
 .header-logo {
@@ -55,6 +67,7 @@
 
 .login-main {
   padding: 4rem 2rem;
+  position: relative;
 }
 
 .login-container {
@@ -70,6 +83,13 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
+}
+
+.premium-left {
+  position: sticky;
+  top: 140px;
+  transform: translate3d(var(--parallax-x, 0px), var(--parallax-y, 0px), 0);
+  transition: transform 0.2s ease-out;
 }
 
 .login-illustration {
@@ -150,6 +170,17 @@
   max-width: 500px;
 }
 
+.premium-card {
+  opacity: 0;
+  transform: translateY(20px) scale(0.98);
+}
+
+.premium-card.reveal-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
 .card-title {
   font-size: 1.75rem;
   font-weight: 700;
@@ -188,6 +219,35 @@
   gap: 1.5rem;
 }
 
+.login-form label {
+  display: block;
+  position: relative;
+  padding-top: 1.2rem;
+}
+
+.login-form label input {
+  width: 100%;
+}
+
+.login-form label span.floating-label {
+  position: absolute;
+  left: 0.75rem;
+  top: 1.05rem;
+  font-size: 0.95rem;
+  color: #64748b;
+  transition: all 0.15s ease;
+  pointer-events: none;
+  background: white;
+  padding: 0 0.25rem;
+}
+
+.login-form label input:focus + span.floating-label,
+.login-form label input:not(:placeholder-shown) + span.floating-label {
+  top: -0.4rem;
+  font-size: 0.8rem;
+  color: #4338ca;
+}
+
 .info-note {
   color: #2b6cb0;
   background: #ebf8ff;
@@ -200,6 +260,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 1rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
 }
 
 .mode-fieldset legend {
@@ -214,8 +275,30 @@
   gap: 0.75rem;
   align-items: flex-start;
   padding: 0.75rem 0;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 0.85rem 0.9rem;
+  transition: all 0.25s ease;
 }
 
+.radio-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  background: #f8fafc;
+}
+
+.radio-row input:checked {
+  accent-color: #3b82f6;
+}
+
+.radio-row:has(input:checked) {
+  border-color: #3b82f6;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.16);
+}
+
+.radio-row:has(input:not(:checked)) {
+  opacity: 0.9;
+}
 .radio-title {
   font-weight: 700;
   color: #1a1a1a;
@@ -245,6 +328,7 @@
   justify-content: center;
   font-size: 3rem;
   margin: 0 auto 1rem auto;
+  box-shadow: 0 12px 28px rgba(72, 187, 120, 0.35);
 }
 
 .success-box {
@@ -266,6 +350,7 @@
   background: #f7fafc;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
 }
 
 .qr-box img {
@@ -312,6 +397,43 @@
 .warning-icon {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
+}
+
+.sticky-cta {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.75rem 1rem;
+  display: none;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.sticky-cta-btn {
+  width: min(500px, 100%);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.2);
+  pointer-events: auto;
+  transform: translateY(0);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.sticky-cta-show {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.sticky-cta-hide {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.success-state {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 1.5rem;
 }
 
 .form-group {
@@ -674,5 +796,9 @@
 
   .separator {
     display: none;
+  }
+
+  .sticky-cta {
+    display: flex;
   }
 }
