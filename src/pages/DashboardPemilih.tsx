@@ -55,13 +55,11 @@ const DashboardPemilih = (): JSX.Element => {
 
   const [showDropdown, setShowDropdown] = useState(false)
 
-  const isStudent = session?.user?.role === 'STUDENT'
-
   useEffect(() => {
     if (!session?.accessToken) return
-    if (!isStudent) {
+    if (!session.user?.voterId) {
       setStatusLoading(false)
-      setStatusError('Akun ini tidak memiliki akses status pemilih. Gunakan akun mahasiswa untuk memilih.')
+      setStatusError('Akun ini belum terhubung sebagai pemilih.')
       setElection(null)
       setMeStatus(null)
       return
@@ -99,7 +97,7 @@ const DashboardPemilih = (): JSX.Element => {
 
     loadStatus()
     return () => controller.abort()
-  }, [session?.accessToken, session?.hasVoted, session?.votingStatus, updateSession, isStudent])
+  }, [session?.accessToken, session?.hasVoted, session?.votingStatus, updateSession, session?.user?.voterId])
 
   useEffect(() => {
     const controller = new AbortController()
