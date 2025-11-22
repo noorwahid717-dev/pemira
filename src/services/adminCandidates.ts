@@ -105,8 +105,8 @@ export const buildCandidatePayload = (candidate: CandidateAdmin) => {
   }
 }
 
-export const fetchAdminCandidates = async (token: string): Promise<CandidateAdmin[]> => {
-  const response = await apiRequest<any>('/admin/elections/' + ACTIVE_ELECTION_ID + '/candidates', {
+export const fetchAdminCandidates = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<CandidateAdmin[]> => {
+  const response = await apiRequest<any>(`/admin/elections/${electionId}/candidates`, {
     token,
   })
   const items = Array.isArray(response?.data?.items) ? response.data.items : Array.isArray(response?.items) ? response.items : Array.isArray(response) ? response : null

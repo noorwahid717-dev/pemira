@@ -7,6 +7,16 @@ export type AdminElectionResponse = {
   name: string
   slug: string
   status: string
+  registration_start_at?: string | null
+  registration_end_at?: string | null
+  verification_start_at?: string | null
+  verification_end_at?: string | null
+  campaign_start_at?: string | null
+  campaign_end_at?: string | null
+  quiet_start_at?: string | null
+  quiet_end_at?: string | null
+  recap_start_at?: string | null
+  recap_end_at?: string | null
   voting_start_at?: string | null
   voting_end_at?: string | null
   online_enabled: boolean
@@ -21,6 +31,18 @@ export type AdminElectionUpdatePayload = Partial<{
   slug: string
   online_enabled: boolean
   tps_enabled: boolean
+  registration_start_at: string | null
+  registration_end_at: string | null
+  verification_start_at: string | null
+  verification_end_at: string | null
+  campaign_start_at: string | null
+  campaign_end_at: string | null
+  quiet_start_at: string | null
+  quiet_end_at: string | null
+  recap_start_at: string | null
+  recap_end_at: string | null
+  voting_start_at: string | null
+  voting_end_at: string | null
 }>
 
 const unwrap = <T>(payload: { data?: T } | T): T => {

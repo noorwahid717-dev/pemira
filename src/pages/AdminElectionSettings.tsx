@@ -89,7 +89,7 @@ const AdminElectionSettings = (): JSX.Element => {
 
         <div className="settings-grid">
           <div className="settings-col">
-            <section className="card schedule-card">
+            <section className="card schedule-card" id="jadwal">
               <div className="card-head">
                 <h2>Jadwal Pemilu</h2>
                 <small>Terakhir diubah: {lastUpdated}</small>
@@ -198,7 +198,7 @@ const AdminElectionSettings = (): JSX.Element => {
           </div>
 
           <div className="settings-col">
-            <section className="card mode-card">
+            <section className="card mode-card" id="mode-voting">
               <h2>Voting Online</h2>
               <div className="field-stack">
                 <p className="label">Mode Voting</p>

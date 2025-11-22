@@ -6,15 +6,17 @@ import {
   facultyParticipationStats,
   participationStats,
   quickActions,
-  systemInfo,
   tpsStatusSummary,
 } from '../data/adminDashboard'
-import type { AdminOverview, CandidateVoteStat, FacultyParticipationStat, ParticipationStats, TPSStatusSummary } from '../types/admin'
+import type { AdminOverview, CandidateVoteStat, FacultyParticipationStat, ParticipationStats, SystemInfo, TPSStatusSummary } from '../types/admin'
 import type { CandidateAdmin } from '../types/candidateAdmin'
 import { useAdminAuth } from './useAdminAuth'
 import { fetchMonitoringLive, type MonitoringLiveResponse } from '../services/adminMonitoring'
 import { fetchAdminCandidates } from '../services/adminCandidates'
 import { fetchAdminElection, type AdminElectionResponse } from '../services/adminElection'
+import { fetchCurrentElection } from '../services/publicElection'
+import { ACTIVE_ELECTION_ID } from '../config/env'
+import type { ApiError } from '../utils/apiClient'
 
 const stageLabels: Record<AdminOverview['stage'], string> = {
   pendaftaran: 'Pendaftaran',
@@ -27,6 +29,7 @@ const stageLabels: Record<AdminOverview['stage'], string> = {
 const mapStatusToStage = (status?: string): AdminOverview['stage'] => {
   switch ((status ?? '').toUpperCase()) {
     case 'REGISTRATION':
+    case 'REGISTRATION_OPEN':
     case 'DRAFT':
       return 'pendaftaran'
     case 'CAMPAIGN':
@@ -42,7 +45,7 @@ const mapStatusToStage = (status?: string): AdminOverview['stage'] => {
   }
 }
 
-const formatVotingPeriod = (start?: string | null, end?: string | null) => {
+const formatPeriod = (start?: string | null, end?: string | null) => {
   if (!start && !end) return 'Jadwal belum diatur'
   const opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' }
   const startLabel = start ? new Date(start).toLocaleDateString('id-ID', opts) : ''
@@ -102,10 +105,19 @@ const mapCandidateVotes = (snapshot: MonitoringLiveResponse, candidates: Candida
 
 const buildOverview = (election: AdminElectionResponse | null, totalCandidates: number, totalVoters: number): AdminOverview => {
   const stage = mapStatusToStage(election?.status)
+  const period =
+    stage === 'pendaftaran'
+      ? formatPeriod(election?.registration_start_at, election?.registration_end_at)
+      : stage === 'kampanye'
+        ? formatPeriod(election?.campaign_start_at, election?.campaign_end_at)
+        : stage === 'rekapitulasi'
+          ? formatPeriod(election?.recap_start_at, election?.recap_end_at)
+          : formatPeriod(election?.voting_start_at, election?.voting_end_at)
+
   return {
     stage,
     stageLabel: stageLabels[stage],
-    votingPeriod: formatVotingPeriod(election?.voting_start_at, election?.voting_end_at),
+    votingPeriod: period,
     totalCandidates: totalCandidates || adminOverview.totalCandidates,
     totalVoters: totalVoters || adminOverview.totalVoters,
     activeMode: deriveModeLabel(election?.online_enabled, election?.tps_enabled),
@@ -114,11 +126,18 @@ const buildOverview = (election: AdminElectionResponse | null, totalCandidates: 
 
 export const useAdminDashboardData = () => {
   const { token } = useAdminAuth()
-  const [overview, setOverview] = useState<AdminOverview>(adminOverview)
-  const [participation, setParticipation] = useState<ParticipationStats>(participationStats)
-  const [tpsStatus, setTpsStatus] = useState<TPSStatusSummary>(tpsStatusSummary)
-  const [logs, setLogs] = useState(activityLogs)
-  const [votes, setVotes] = useState(candidateVoteStats)
+  const [electionId, setElectionId] = useState<number>(ACTIVE_ELECTION_ID)
+  const [overview, setOverview] = useState<AdminOverview>({
+    ...adminOverview,
+    totalCandidates: 0,
+    totalVoters: 0,
+    votingPeriod: 'Memuat...',
+  })
+  const [participation, setParticipation] = useState<ParticipationStats>({ totalVoters: 0, voted: 0, notVoted: 0 })
+  const [tpsStatus, setTpsStatus] = useState<TPSStatusSummary>({ ...tpsStatusSummary, total: 0, active: 0, issue: 0, closed: 0, detail: [] })
+  const [logs, setLogs] = useState(activityLogs.length ? [] : [])
+  const [votes, setVotes] = useState<CandidateVoteStat[]>([])
+  const [liveSystemInfo, setLiveSystemInfo] = useState<SystemInfo>({ serverStatus: 'normal', lastSync: '—', dataLocked: false })
   const [viewMode, setViewMode] = useState<'pie' | 'bar'>('bar')
   const [activeFilter, setActiveFilter] = useState<'all' | 'fakultas'>('all')
   const [loading, setLoading] = useState(false)
@@ -132,16 +151,23 @@ export const useAdminDashboardData = () => {
       setLoading(true)
       setError(undefined)
       try {
-        const [snapshot, candidateList, election] = await Promise.all([
-          fetchMonitoringLive(token).catch(() => ({
-            participation: { total_eligible: 0, total_voted: 0 },
-            total_votes: 0,
-            candidates: [],
-            tps_stations: [],
-          })),
-          fetchAdminCandidates(token).catch(() => []),
-          fetchAdminElection(token).catch(() => null),
-        ])
+        let targetElectionId = electionId || ACTIVE_ELECTION_ID
+        let election: AdminElectionResponse | null = null
+
+        try {
+          election = await fetchAdminElection(token, targetElectionId)
+        } catch (err: any) {
+          if (err?.status === 404) {
+            const current = await fetchCurrentElection()
+            targetElectionId = current.id
+            if (mounted) setElectionId(current.id)
+            election = await fetchAdminElection(token, current.id)
+          } else {
+            throw err
+          }
+        }
+
+        const [snapshot, candidateList] = await Promise.all([fetchMonitoringLive(token, targetElectionId), fetchAdminCandidates(token, targetElectionId)])
         if (!mounted) return
 
         const totalVoters = snapshot.participation?.total_eligible ?? participationStats.totalVoters
@@ -156,23 +182,24 @@ export const useAdminDashboardData = () => {
         setVotes(mappedVotes)
         setTpsStatus(mapTpsStatus(snapshot))
         setOverview(buildOverview(election, mappedVotes.length || candidateList.length, totalVoters))
-        setLogs((prev) => [
+        setLiveSystemInfo({
+          serverStatus: 'normal',
+          lastSync: new Date(snapshot.timestamp ?? Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+          dataLocked: false,
+        })
+        setLogs([
           {
             id: `log-${Date.now()}`,
             time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
             message: 'Data dashboard diperbarui',
             highlight: true,
           },
-          ...prev.slice(0, 5),
         ])
       } catch (err) {
         if (!mounted) return
+        const apiErr = err as ApiError
         console.error('Failed to load admin dashboard data', err)
-        setError((err as { message?: string })?.message ?? 'Gagal memuat data dashboard')
-        setParticipation(participationStats)
-        setVotes(candidateVoteStats)
-        setTpsStatus(tpsStatusSummary)
-        setOverview(adminOverview)
+        setError(apiErr?.message ?? 'Gagal memuat data dashboard dari server')
       } finally {
         if (mounted) setLoading(false)
       }
@@ -185,7 +212,7 @@ export const useAdminDashboardData = () => {
       mounted = false
       window.clearInterval(interval)
     }
-  }, [token])
+  }, [electionId, token])
 
   useEffect(() => {
     if (token) return
@@ -204,9 +231,10 @@ export const useAdminDashboardData = () => {
   }, [participation])
 
   const facultyStats = useMemo<FacultyParticipationStat[]>(() => {
-    if (activeFilter === 'all') return facultyParticipationStats
+    // Belum ada endpoint partisipasi per fakultas; hindari tampilan data mock saat token ada.
+    if (token) return []
     return facultyParticipationStats
-  }, [activeFilter])
+  }, [activeFilter, token])
 
   return {
     overview,
@@ -220,7 +248,7 @@ export const useAdminDashboardData = () => {
     facultyStats,
     setActiveFilter,
     actions: quickActions,
-    systemInfo,
+    systemInfo: liveSystemInfo,
     loading,
     error,
   }

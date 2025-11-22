@@ -19,16 +19,16 @@ export type MonitoringLiveResponse = {
   }>
 }
 
-export const fetchMonitoringLive = async (token: string): Promise<MonitoringLiveResponse> => {
-  // Sementara skip jika endpoint belum tersedia di backend
-  const MONITORING_ENDPOINT_AVAILABLE = false // Set true jika backend sudah implement
-  
-  if (!MONITORING_ENDPOINT_AVAILABLE) {
-    // Return mock data tanpa request ke backend
-    return Promise.reject(new Error('Monitoring endpoint not yet implemented'))
+const unwrap = <T>(payload: { data?: T } | T): T => {
+  if (payload && typeof payload === 'object' && 'data' in payload) {
+    return (payload as { data: T }).data
   }
-  
-  return apiRequest<MonitoringLiveResponse>(`/admin/monitoring/live-count/${ACTIVE_ELECTION_ID}`, {
+  return payload as T
+}
+
+export const fetchMonitoringLive = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<MonitoringLiveResponse> => {
+  const response = await apiRequest<MonitoringLiveResponse | { data: MonitoringLiveResponse }>(`/admin/monitoring/live-count/${electionId}`, {
     token,
   })
+  return unwrap(response)
 }

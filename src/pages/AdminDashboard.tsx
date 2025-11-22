@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/admin/AdminLayout'
 import { useAdminDashboardData } from '../hooks/useAdminDashboardData'
 import '../styles/AdminDashboard.css'
 
 const AdminDashboard = (): JSX.Element => {
+  const navigate = useNavigate()
   const {
     overview,
     participation,
@@ -19,6 +21,9 @@ const AdminDashboard = (): JSX.Element => {
     loading,
     error,
   } = useAdminDashboardData()
+
+  const openScheduleSettings = () => navigate('/admin/pengaturan#jadwal')
+  const openModeSettings = () => navigate('/admin/pengaturan#mode-voting')
 
   const voteTotal = useMemo(() => votes.reduce((sum, item) => sum + item.votes, 0), [votes])
   const topCandidateId = useMemo(() => {
@@ -54,8 +59,8 @@ const AdminDashboard = (): JSX.Element => {
         </div>
 
         <div className="hero-actions">
-          <button type="button" className="btn-outline">Edit Jadwal</button>
-          <button type="button" className="btn-primary">Atur Mode Voting</button>
+          <button type="button" className="btn-outline" onClick={openScheduleSettings}>Edit Jadwal</button>
+          <button type="button" className="btn-primary" onClick={openModeSettings}>Atur Mode Voting</button>
         </div>
         {(loading || error) && (
           <div className="status-row">
@@ -91,8 +96,8 @@ const AdminDashboard = (): JSX.Element => {
             </div>
           </div>
           <div className="status-actions">
-            <button type="button" className="btn-ghost">Edit Jadwal</button>
-            <button type="button" className="btn-ghost">Atur Mode Voting</button>
+            <button type="button" className="btn-ghost" onClick={openScheduleSettings}>Edit Jadwal</button>
+            <button type="button" className="btn-ghost" onClick={openModeSettings}>Atur Mode Voting</button>
           </div>
         </article>
 
@@ -121,7 +126,7 @@ const AdminDashboard = (): JSX.Element => {
               <div style={{ width: `${participationPercentage}%` }} />
             </div>
           </div>
-          <a href="#detail" className="muted-link">Lihat detail per fakultas →</a>
+          <a href="#partisipasi-fakultas" className="muted-link">Lihat detail per fakultas →</a>
         </article>
       </section>
 
@@ -145,7 +150,7 @@ const AdminDashboard = (): JSX.Element => {
               </div>
             ))}
           </div>
-          <a href="/tps-panel" className="muted-link">Panel TPS Lengkap →</a>
+          <Link to="/tps-panel" className="muted-link">Panel TPS Lengkap →</Link>
         </article>
 
         <article className="card activity-feed">
@@ -164,7 +169,7 @@ const AdminDashboard = (): JSX.Element => {
               </li>
             ))}
           </ul>
-          <button type="button" className="muted-link">Lihat Log Lengkap →</button>
+          <Link to="/admin/monitoring" className="muted-link">Lihat Log Lengkap →</Link>
         </article>
       </section>
 
@@ -201,7 +206,7 @@ const AdminDashboard = (): JSX.Element => {
           </div>
         </article>
 
-        <article className="card faculty-card">
+        <article className="card faculty-card" id="partisipasi-fakultas">
           <div className="card-header">
             <div>
               <h3>Partisipasi per Fakultas</h3>
@@ -236,7 +241,7 @@ const AdminDashboard = (): JSX.Element => {
         </div>
         <div className="action-grid">
           {actions.map((action) => (
-            <a key={action.id} className="action-card" href={action.href}>
+            <Link key={action.id} className="action-card" to={action.href}>
               <div className="action-icon" aria-hidden>
                 {action.icon ?? '↗'}
               </div>
@@ -244,23 +249,34 @@ const AdminDashboard = (): JSX.Element => {
                 <strong>{action.label}</strong>
                 <p>{action.description}</p>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       </section>
 
       <section className="system-info card">
-        <div>
-          <span>Server Status</span>
-          <strong className={`status ${systemInfo.serverStatus}`}>{systemInfo.serverStatus === 'normal' ? '✔ Normal' : '⚠ Perlu perhatian'}</strong>
+        <div className="info-block">
+          <div className="info-icon" aria-hidden>⏱</div>
+          <div className="info-text">
+            <span>Terakhir Sinkronisasi</span>
+            <strong>{systemInfo.lastSync}</strong>
+          </div>
         </div>
-        <div>
-          <span>Terakhir Sinkronisasi</span>
-          <strong>{systemInfo.lastSync}</strong>
+        <div className="info-block">
+          <div className="info-icon" aria-hidden>🛰</div>
+          <div className="info-text">
+            <span>Status Server</span>
+            <strong className={`status ${systemInfo.serverStatus}`}>
+              {systemInfo.serverStatus === 'normal' ? '✔ Normal' : systemInfo.serverStatus === 'warning' ? '⚠ Perlu perhatian' : '⛔ Down'}
+            </strong>
+          </div>
         </div>
-        <div>
-          <span>Data Sinkronisasi</span>
-          <strong>{systemInfo.dataLocked ? 'Terkunci' : 'Live'}</strong>
+        <div className="info-block">
+          <div className="info-icon" aria-hidden>🔒</div>
+          <div className="info-text">
+            <span>Data Sinkronisasi</span>
+            <strong>{systemInfo.dataLocked ? 'Terkunci' : 'Live'}</strong>
+          </div>
         </div>
       </section>
     </AdminLayout>
