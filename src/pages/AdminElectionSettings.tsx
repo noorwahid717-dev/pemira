@@ -1,5 +1,4 @@
 import AdminLayout from '../components/admin/AdminLayout'
-import { electionStatusOptions } from '../data/electionSettings'
 import { useElectionSettings } from '../hooks/useElectionSettings'
 import type { ElectionRules, VotingMode } from '../types/electionSettings'
 import '../styles/AdminElectionSettings.css'
@@ -12,8 +11,6 @@ const votingModeLabels: Record<VotingMode, string> = {
 
 const AdminElectionSettings = (): JSX.Element => {
   const {
-    status,
-    setStatus,
     statusLabel,
     mode,
     setMode,
@@ -25,9 +22,13 @@ const AdminElectionSettings = (): JSX.Element => {
     security,
     setSecurity,
     savingSection,
-    saveSection,
     lastUpdated,
     isModeChangeDisabled,
+    saveMode,
+    saveTimeline,
+    saveRules,
+    loading,
+    error,
   } = useElectionSettings()
 
   const updateRule = <K extends keyof ElectionRules>(field: K, value: ElectionRules[K]) => {
@@ -35,9 +36,7 @@ const AdminElectionSettings = (): JSX.Element => {
   }
 
   const handleSaveMode = () => {
-    saveSection('mode', () => {
-      console.log('Mode saved', { status, mode })
-    })
+    void saveMode()
   }
 
   const handleSaveTimeline = () => {
@@ -45,11 +44,11 @@ const AdminElectionSettings = (): JSX.Element => {
       alert('Periksa kembali jadwal. Pastikan tidak ada tanggal yang tumpang tindih.')
       return
     }
-    saveSection('timeline', () => console.log('Timeline saved', timeline))
+    void saveTimeline()
   }
 
   const handleSaveRules = () => {
-    saveSection('rules', () => console.log('Rules saved', rules))
+    void saveRules()
   }
 
   const handleLockVoting = () => {
@@ -80,10 +79,12 @@ const AdminElectionSettings = (): JSX.Element => {
             </a>
             <div className="status-chip">
               <span className="dot live" />
-              <span>Aktif</span>
+              <span>{statusLabel || 'Aktif'}</span>
             </div>
           </div>
-          <p className="sub-label">Mode: Online + TPS</p>
+          <p className="sub-label">Mode: {votingModeLabels[mode]}</p>
+          {loading && <p className="sub-label">Memuat pengaturan...</p>}
+          {error && <p className="error-text">{error}</p>}
         </header>
 
         <div className="settings-grid">
@@ -199,6 +200,39 @@ const AdminElectionSettings = (): JSX.Element => {
           <div className="settings-col">
             <section className="card mode-card">
               <h2>Voting Online</h2>
+              <div className="field-stack">
+                <p className="label">Mode Voting</p>
+                <label className="radio-row">
+                  <input
+                    type="radio"
+                    name="voting-mode"
+                    checked={mode === 'hybrid'}
+                    disabled={isModeChangeDisabled}
+                    onChange={() => setMode('hybrid')}
+                  />
+                  Hybrid (Online + TPS)
+                </label>
+                <label className="radio-row">
+                  <input
+                    type="radio"
+                    name="voting-mode"
+                    checked={mode === 'online'}
+                    disabled={isModeChangeDisabled}
+                    onChange={() => setMode('online')}
+                  />
+                  Online saja
+                </label>
+                <label className="radio-row">
+                  <input
+                    type="radio"
+                    name="voting-mode"
+                    checked={mode === 'tps'}
+                    disabled={isModeChangeDisabled}
+                    onChange={() => setMode('tps')}
+                  />
+                  TPS saja
+                </label>
+              </div>
               <div className="field-stack">
                 <p className="label">Perangkat</p>
                 <label className="radio-row">

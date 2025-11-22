@@ -77,14 +77,11 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (token) {
       setVoters([])
+      void refresh()
     } else {
       setVoters(dptListMock)
     }
-  }, [token])
-
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
+  }, [token, refresh])
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {

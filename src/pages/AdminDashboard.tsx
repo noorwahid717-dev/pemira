@@ -16,6 +16,8 @@ const AdminDashboard = (): JSX.Element => {
     facultyStats,
     actions,
     systemInfo,
+    loading,
+    error,
   } = useAdminDashboardData()
 
   const voteTotal = useMemo(() => votes.reduce((sum, item) => sum + item.votes, 0), [votes])
@@ -28,14 +30,11 @@ const AdminDashboard = (): JSX.Element => {
     <AdminLayout title="Dashboard Admin">
       <section className="admin-hero">
         <div className="hero-top">
-          <div>
+          <div className="hero-info">
             <p className="eyebrow">Status Pemilu</p>
             <h2>{overview.stageLabel}</h2>
             <p className="meta">Periode: {overview.votingPeriod}</p>
-          </div>
-          <div className="hero-badges">
-            <span className="badge live">Voting Dibuka</span>
-            <span className="badge soft">Mode: {overview.activeMode}</span>
+            <p className="meta">Mode: {overview.activeMode}</p>
           </div>
         </div>
 
@@ -58,6 +57,12 @@ const AdminDashboard = (): JSX.Element => {
           <button type="button" className="btn-outline">Edit Jadwal</button>
           <button type="button" className="btn-primary">Atur Mode Voting</button>
         </div>
+        {(loading || error) && (
+          <div className="status-row">
+            {loading && <span>Memuat data live...</span>}
+            {error && <span className="error-text">{error}</span>}
+          </div>
+        )}
       </section>
 
       <section className="section-grid two-col">
@@ -67,7 +72,7 @@ const AdminDashboard = (): JSX.Element => {
             <span className="muted">Realtime</span>
           </div>
           <div className="status-pill-row">
-            <span className="pill success">Voting Dibuka</span>
+            <span className="pill success">{overview.stageLabel}</span>
             <span className="pill outline">Mode: {overview.activeMode}</span>
             <span className="pill outline">Jadwal: {overview.votingPeriod}</span>
           </div>

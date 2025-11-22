@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Header from '../components/Header'
 import KandidatCard from '../components/shared/KandidatCard'
-import PageHeader from '../components/shared/PageHeader'
 import { fetchPublicCandidates } from '../services/publicCandidates'
-import { useVotingSession } from '../hooks/useVotingSession'
 import type { Candidate } from '../types/voting'
 import '../styles/DaftarKandidat.css'
 
@@ -19,7 +18,6 @@ const fakultasList = [
 
 const DaftarKandidat = (): JSX.Element => {
   const navigate = useNavigate()
-  const { mahasiswa, clearSession, session } = useVotingSession()
   const [searchQuery, setSearchQuery] = useState('')
   const [filterFakultas, setFilterFakultas] = useState<string>('Semua')
   const [sortBy, setSortBy] = useState<SortBy>('nomor_urut')
@@ -29,7 +27,7 @@ const DaftarKandidat = (): JSX.Element => {
   useEffect(() => {
     const controller = new AbortController()
     setError(null)
-    fetchPublicCandidates({ signal: controller.signal, token: session?.accessToken })
+    fetchPublicCandidates({ signal: controller.signal })
       .then((items) => {
         setCandidates(items)
         setError(null)
@@ -40,7 +38,7 @@ const DaftarKandidat = (): JSX.Element => {
         setCandidates([])
       })
     return () => controller.abort()
-  }, [session?.accessToken])
+  }, [])
 
   const filteredCandidates = useMemo(() => {
     let filtered: Candidate[] = [...candidates]
@@ -75,23 +73,21 @@ const DaftarKandidat = (): JSX.Element => {
     totalKandidat: candidates.length,
   }
 
-  const handleLogout = () => {
-    if (window.confirm('Yakin ingin keluar?')) {
-      clearSession()
-      navigate('/', { replace: true })
-    }
-  }
-
   const goToCandidate = (id: number) => {
     navigate(`/kandidat/detail/${id}`)
   }
 
   return (
     <div className="kandidat-page">
-      <PageHeader title="Daftar Kandidat" user={mahasiswa} onLogout={handleLogout} />
+      <Header />
 
       <main className="kandidat-main">
         <div className="kandidat-container">
+          <button className="btn-back" onClick={() => navigate('/')}>
+            <span className="back-icon">←</span>
+            <span>Kembali ke Beranda</span>
+          </button>
+
           <div className="page-header">
             <div className="page-header-content">
               <h1 className="page-title">Daftar Calon Ketua BEM</h1>
@@ -156,8 +152,8 @@ const DaftarKandidat = (): JSX.Element => {
             </div>
           ) : (
             <div className="kandidat-grid">
-              {filteredCandidates.map((candidate) => (
-                <KandidatCard key={candidate.id} kandidat={candidate} onClick={goToCandidate} />
+              {filteredCandidates.map((candidate, index) => (
+                <KandidatCard key={candidate.id} kandidat={candidate} onClick={goToCandidate} animationDelay={index * 0.1} />
               ))}
             </div>
           )}

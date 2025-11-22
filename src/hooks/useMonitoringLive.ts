@@ -16,8 +16,6 @@ const colors = ['#5b61ff', '#22ccee', '#ec4899', '#fbbf24', '#22c55e', '#a855f7'
 const mapSnapshotToState = (snapshot: MonitoringLiveResponse, candidatesRef: CandidateLiveStat[]): { summary: LiveSummary; candidates: CandidateLiveStat[]; tps: TPSLiveStatus[] } => {
   const totalVotes = snapshot.total_votes
   const totalVoters = snapshot.participation.total_eligible || monitoringSummary.totalVoters
-  const participation = snapshot.participation.participation_pct || (totalVoters ? (totalVotes / totalVoters) * 100 : 0)
-
   const mappedCandidates =
     candidatesRef.length > 0
       ? candidatesRef.map((candidate, idx) => {

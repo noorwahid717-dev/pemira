@@ -31,11 +31,11 @@ const mapStatus = (hasVoted: boolean): VoterStatus => (hasVoted ? 'sudah' : 'bel
 
 export const fetchAdminDpt = async (token: string, params: URLSearchParams): Promise<{ items: DPTEntry[]; total: number }> => {
   const response = await apiRequest<{
-    items: DptApiItem[]
+    items: DptApiItem[] | null
     pagination: { total_items: number }
   }>(`/admin/elections/${ACTIVE_ELECTION_ID}/voters?${params.toString()}`, { token })
 
-  const items: DPTEntry[] = response.items.map((item) => ({
+  const items: DPTEntry[] = (response.items ?? []).map((item) => ({
     id: item.voter_id.toString(),
     nim: item.nim,
     nama: item.name,
@@ -48,5 +48,5 @@ export const fetchAdminDpt = async (token: string, params: URLSearchParams): Pro
     waktuVoting: item.status.last_vote_at ?? undefined,
   }))
 
-  return { items, total: response.pagination.total_items }
+  return { items, total: response.pagination?.total_items ?? 0 }
 }

@@ -6,9 +6,10 @@ type KandidatCardProps = {
   kandidat: Candidate & { visi?: string }
   onClick?: (id: number) => void
   variant?: 'full' | 'preview'
+  animationDelay?: number
 }
 
-const KandidatCard = ({ kandidat, onClick, variant = 'full' }: KandidatCardProps): JSX.Element => {
+const KandidatCard = ({ kandidat, onClick, variant = 'full', animationDelay = 0 }: KandidatCardProps): JSX.Element => {
   const handleClick = () => {
     onClick?.(kandidat.id)
   }
@@ -29,7 +30,14 @@ const KandidatCard = ({ kandidat, onClick, variant = 'full' }: KandidatCardProps
   }
 
   return (
-    <div className="kandidat-card" onClick={handleClick} role="button" tabIndex={0} onKeyPress={handleKeyPress}>
+    <div 
+      className="kandidat-card" 
+      onClick={handleClick} 
+      role="button" 
+      tabIndex={0} 
+      onKeyPress={handleKeyPress}
+      style={{ animationDelay: `${animationDelay}s` }}
+    >
       <div className="kandidat-photo">
         <div className="photo-placeholder">{kandidat.foto || kandidat.nomorUrut}</div>
       </div>
