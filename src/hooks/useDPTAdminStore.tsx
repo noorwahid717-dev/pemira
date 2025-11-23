@@ -59,10 +59,6 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
     setError(undefined)
     try {
       const params = new URLSearchParams()
-      if (filters.fakultas !== 'all') params.append('faculty', filters.fakultas)
-      if (filters.angkatan !== 'all') params.append('cohort_year', filters.angkatan)
-      if (filters.statusSuara !== 'all') params.append('has_voted', filters.statusSuara === 'sudah' ? 'true' : 'false')
-      if (filters.search) params.append('search', filters.search)
       const { items } = await fetchAdminDpt(token, params)
       setVoters(items)
     } catch (err) {
@@ -72,7 +68,7 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false)
     }
-  }, [filters.angkatan, filters.fakultas, filters.search, filters.statusSuara, token])
+  }, [token])
 
   useEffect(() => {
     if (token) {

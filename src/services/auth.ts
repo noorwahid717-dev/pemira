@@ -5,6 +5,7 @@ export type AuthUserProfile = {
   faculty_name?: string
   study_program_name?: string
   cohort_year?: number
+  semester?: string
 }
 
 export type AuthUser = {
@@ -36,7 +37,7 @@ export const registerStudent = (payload: {
   password: string
   faculty_name?: string
   study_program_name?: string
-  semester?: number
+  semester: string
   voting_mode?: 'ONLINE' | 'TPS'
 }) =>
   apiRequest<RegisterResponse>('/auth/register/student', {

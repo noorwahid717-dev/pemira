@@ -8,13 +8,20 @@ export type DPTEntry = {
   id: string
   nim: string
   nama: string
+  email?: string
   fakultas: string
+  fakultasCode?: string
   prodi: string
+  prodiCode?: string
   angkatan: string
+  kelasLabel?: string
   akademik: AcademicStatus
   statusSuara: VoterStatus
   metodeVoting: VotingMethod
   waktuVoting?: string
+  tpsId?: number
+  isEligible: boolean
+  hasAccount?: boolean
 }
 
 export type ImportStep = 1 | 2 | 3 | 4

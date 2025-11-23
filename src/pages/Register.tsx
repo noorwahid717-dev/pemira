@@ -132,7 +132,7 @@ const Register = (): JSX.Element => {
           password: studentForm.password,
           faculty_name: studentForm.faculty.trim(),
           study_program_name: studentForm.program.trim(),
-          semester: studentForm.semester ? studentForm.semester.trim() : undefined,
+          semester: studentForm.semester.trim(),
           voting_mode: mode === 'tps' ? 'TPS' : 'ONLINE',
         })
         await handleRegisterSuccess(res, studentForm.nim.trim(), studentForm.password)
@@ -332,7 +332,7 @@ const Register = (): JSX.Element => {
                       <input value={studentForm.name} onChange={(e) => setStudentForm((prev) => ({ ...prev, name: e.target.value }))} required />
                     </label>
                     <label className="form-field">
-                      <span className="field-label">NIM Mahasiswa</span>
+                      <span className="field-label">NIM (username)</span>
                       <input value={studentForm.nim} onChange={(e) => setStudentForm((prev) => ({ ...prev, nim: e.target.value }))} required />
                     </label>
                     <label className="form-field">
@@ -373,8 +373,7 @@ const Register = (): JSX.Element => {
                         <option value="6">Semester 6</option>
                         <option value="7">Semester 7</option>
                         <option value="8">Semester 8</option>
-                        <option value="9">Semester 9</option>
-                        <option value="10">Semester 10</option>
+                        <option value="9">Semester 9+</option>
                       </select>
                     </label>
                     <p className="microcopy">Gunakan data sesuai sistem akademik kampus.</p>
@@ -386,7 +385,7 @@ const Register = (): JSX.Element => {
                       <input value={staffForm.name} onChange={(e) => setStaffForm((prev) => ({ ...prev, name: e.target.value }))} required />
                     </label>
                     <label className="form-field">
-                      <span className="field-label">Username {role === 'lecturer' ? '(NIDN)' : '(NIP)'}</span>
+                      <span className="field-label">{role === 'lecturer' ? 'NIDN (username)' : 'NIP/NIY (username)'}</span>
                       <input value={staffForm.username} onChange={(e) => setStaffForm((prev) => ({ ...prev, username: e.target.value }))} required />
                     </label>
                     <label className="form-field">
@@ -425,7 +424,7 @@ const Register = (): JSX.Element => {
                   <span className="field-label">Email UNIWA (opsional)</span>
                   <input
                     type="email"
-                    placeholder="Kosongkan jika ingin otomatis nim@pemira.ac.id"
+                    placeholder="Kosongkan jika ingin otomatis username@pemira.online"
                     value={role === 'student' ? studentForm.email : staffForm.email}
                     onChange={(e) =>
                       role === 'student'
