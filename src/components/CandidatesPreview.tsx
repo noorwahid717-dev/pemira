@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import { mockCandidates } from '../data/mockCandidates'
 import { fetchPublicCandidates } from '../services/publicCandidates'
 import { useVotingSession } from '../hooks/useVotingSession'
 import '../styles/CandidatesPreview.css'
 
 const CandidatesPreview = (): JSX.Element => {
   const { session } = useVotingSession()
-  const [candidates, setCandidates] = useState(mockCandidates)
+  const [candidates, setCandidates] = useState<{ id: string; nama: string; nomorUrut: number; foto?: string; fakultas?: string; prodi?: string; angkatan?: string }[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -17,9 +16,9 @@ const CandidatesPreview = (): JSX.Element => {
         setCandidates(items)
         setError(null)
       })
-      .catch((err) => {
-        console.warn('Using mock candidates, failed to load API', err)
-        setError('Tidak dapat memuat data saat ini. Coba lagi beberapa saat.')
+      .catch(() => {
+        setError('Tidak dapat memuat data kandidat saat ini.')
+        setCandidates([])
       })
     return () => controller.abort()
   }, [session?.accessToken])

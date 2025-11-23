@@ -1,5 +1,4 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { tpsAdminList } from '../data/tpsAdmin'
 import { assignPanitiaTps, createAdminTps, fetchAdminTpsDetail, fetchAdminTpsList, regenerateQrTps, updateAdminTps } from '../services/adminTps'
 import type { TPSAdmin, TPSPanitia, TPSStatus } from '../types/tpsAdmin'
 import { useAdminAuth } from './useAdminAuth'
@@ -42,7 +41,7 @@ const TPSAdminContext = createContext<{
 
 export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useAdminAuth()
-  const [tpsList, setTPSList] = useState<TPSAdmin[]>(token ? [] : tpsAdminList)
+  const [tpsList, setTPSList] = useState<TPSAdmin[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
 
@@ -60,18 +59,13 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('Failed to load TPS', err)
       setError((err as { message?: string })?.message ?? 'Gagal memuat TPS')
-      setTPSList((prev) => (prev.length ? prev : tpsAdminList))
     } finally {
       setLoading(false)
     }
   }, [token])
 
   useEffect(() => {
-    if (token) {
-      setTPSList([])
-    } else {
-      setTPSList(tpsAdminList)
-    }
+    setTPSList([])
   }, [token])
 
   useEffect(() => {
@@ -81,16 +75,8 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
   const saveTPS = useCallback(
     async (payload: TPSAdmin, mode: TPSStatus) => {
       const prepared = { ...payload, status: mode }
-      let saved = prepared
-      if (token) {
-        if (payload.id && tpsList.some((tps) => tps.id === payload.id)) {
-          saved = await updateAdminTps(token, payload.id, prepared)
-        } else {
-          saved = await createAdminTps(token, prepared)
-        }
-      } else {
-        saved = { ...prepared, id: payload.id || `tps-${generateId()}` }
-      }
+      if (!token) throw new Error('Admin token diperlukan untuk menyimpan TPS')
+      const saved = payload.id && tpsList.some((tps) => tps.id === payload.id) ? await updateAdminTps(token, payload.id, prepared) : await createAdminTps(token, prepared)
       setTPSList((prev) => {
         const exists = prev.some((tps) => tps.id === saved.id)
         if (exists) return prev.map((tps) => (tps.id === saved.id ? saved : tps))
@@ -103,9 +89,8 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
 
   const updatePanitia = useCallback(
     async (tpsId: string, panitia: TPSPanitia[]) => {
-      if (token) {
-        await assignPanitiaTps(token, tpsId, panitia)
-      }
+      if (!token) throw new Error('Admin token diperlukan untuk mengatur panitia TPS')
+      await assignPanitiaTps(token, tpsId, panitia)
       setTPSList((prev) => prev.map((tps) => (tps.id === tpsId ? { ...tps, panitia } : tps)))
     },
     [token],
@@ -133,7 +118,7 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
 
   const regenerateQr = useCallback(
     async (id: string) => {
-      if (!token) return
+      if (!token) throw new Error('Admin token diperlukan untuk generate ulang QR')
       try {
         await regenerateQrTps(token, id)
         await loadDetail(id)

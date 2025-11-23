@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { mockCandidates } from '../data/mockCandidates'
 import PemiraLogos from '../components/shared/PemiraLogos'
 import { useVotingSession } from '../hooks/useVotingSession'
 import { fetchPublicCandidates } from '../services/publicCandidates'
@@ -51,7 +50,7 @@ const DashboardPemilih = (): JSX.Element => {
   const [statusLoading, setStatusLoading] = useState(true)
   const [statusError, setStatusError] = useState<string | null>(null)
 
-  const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates)
+  const [candidates, setCandidates] = useState<Candidate[]>([])
   const [candidatesError, setCandidatesError] = useState<string | null>(null)
 
   const [showDropdown, setShowDropdown] = useState(false)
@@ -108,8 +107,8 @@ const DashboardPemilih = (): JSX.Element => {
         setCandidatesError(null)
       })
       .catch(() => {
-        setCandidatesError('Menampilkan data sementara.')
-        setCandidates(mockCandidates)
+        setCandidatesError('Gagal memuat kandidat.')
+        setCandidates([])
       })
 
     return () => controller.abort()

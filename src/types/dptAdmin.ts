@@ -14,6 +14,8 @@ export type DPTEntry = {
   prodi: string
   prodiCode?: string
   angkatan: string
+  semester?: string
+  tipe?: 'mahasiswa' | 'dosen' | 'staf' | string
   kelasLabel?: string
   akademik: AcademicStatus
   statusSuara: VoterStatus

@@ -18,7 +18,7 @@ const akademikLabels: Record<AcademicStatus, string> = {
 
 const AdminDPTList = (): JSX.Element => {
   const navigate = useNavigate()
-  const { voters, filters, setFilters, selected, toggleSelect, selectAll, clearSelection, refresh, loading, error } = useDPTAdminStore()
+  const { voters, total, page, limit, setPage, filters, setFilters, selected, toggleSelect, selectAll, clearSelection, refresh, loading, error } = useDPTAdminStore()
 
   const fakultasOptions = useMemo(() => ['all', ...new Set(voters.map((voter) => voter.fakultas))], [voters])
   const angkatanOptions = useMemo(() => ['all', ...new Set(voters.map((voter) => voter.angkatan))], [voters])
@@ -33,6 +33,9 @@ const AdminDPTList = (): JSX.Element => {
       return matchesSearch && matchesFakultas && matchesAngkatan && matchesStatus && matchesAkademik
     })
   }, [filters, voters])
+
+  const pageCount = useMemo(() => Math.max(1, Math.ceil(total / limit)), [limit, total])
+  const startIndex = (page - 1) * limit
 
   const handleSelectAll = () => {
     if (filteredVoters.every((voter) => selected.has(voter.id))) {
@@ -100,6 +103,12 @@ const AdminDPTList = (): JSX.Element => {
           <option value="cuti">Cuti</option>
           <option value="nonaktif">Nonaktif</option>
         </select>
+        <select value={filters.tipe} onChange={(event) => setFilters((prev) => ({ ...prev, tipe: event.target.value as typeof filters.tipe }))}>
+          <option value="all">Tipe Pemilih: Semua</option>
+          <option value="mahasiswa">Mahasiswa</option>
+          <option value="dosen">Dosen</option>
+          <option value="staf">Staf</option>
+        </select>
       </div>
 
       <div className="mass-actions">
@@ -120,10 +129,13 @@ const AdminDPTList = (): JSX.Element => {
           <thead>
             <tr>
               <th />
+              <th>No</th>
               <th>NIM</th>
               <th>Nama</th>
-              <th>Fakultas / Prodi</th>
-              <th>Angkatan</th>
+              <th>Fakultas</th>
+              <th>Prodi</th>
+              <th>Semester</th>
+              <th>Tipe Pemilih</th>
               <th>Akademik</th>
               <th>Status Suara</th>
               <th>Metode</th>
@@ -134,29 +146,32 @@ const AdminDPTList = (): JSX.Element => {
           <tbody>
             {filteredVoters.length === 0 && (
               <tr>
-                <td colSpan={10} className="empty-state">
+                <td colSpan={12} className="empty-state">
                   Tidak ada data pemilih.
                 </td>
               </tr>
             )}
-            {filteredVoters.map((voter) => (
+            {filteredVoters.map((voter, idx) => (
               <tr key={voter.id}>
                 <td>
                   <input type="checkbox" checked={selected.has(voter.id)} onChange={() => toggleSelect(voter.id)} />
                 </td>
+                <td>{startIndex + idx + 1}</td>
                 <td>{voter.nim}</td>
                 <td>{voter.nama}</td>
-                <td>
-                  {voter.fakultas} – {voter.prodi}
-                </td>
-                <td>{voter.angkatan}</td>
+                <td>{voter.fakultas}</td>
+                <td>{voter.prodi}</td>
+                <td>{voter.semester ?? '-'}</td>
+                <td>{voter.tipe ?? '-'}</td>
                 <td>{akademikLabels[voter.akademik]}</td>
                 <td>
                   <span className={`status-chip ${voter.statusSuara}`}>{statusSuaraLabels[voter.statusSuara]}</span>
                 </td>
                 <td>
-                  {voter.metodeVoting}
-                  {voter.waktuVoting && <small>{new Date(voter.waktuVoting).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</small>}
+                  <div className="stacked-cell">
+                    <span>{voter.metodeVoting}</span>
+                    {voter.waktuVoting && <small>{new Date(voter.waktuVoting).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</small>}
+                  </div>
                 </td>
                 <td>
                   <button className="btn-table" type="button" onClick={() => navigate(`/admin/dpt/${voter.id}`)}>
@@ -164,13 +179,32 @@ const AdminDPTList = (): JSX.Element => {
                   </button>
                 </td>
                 <td>
-                  {voter.waktuVoting ? new Date(voter.waktuVoting).toLocaleString('id-ID') : '-'}
-                  {voter.metodeVoting && voter.metodeVoting !== '-' && <small>{voter.metodeVoting.toUpperCase()}</small>}
+                  <div className="stacked-cell">
+                    <span>{voter.waktuVoting ? new Date(voter.waktuVoting).toLocaleString('id-ID') : '-'}</span>
+                    {voter.metodeVoting && voter.metodeVoting !== '-' && <small>{voter.metodeVoting.toUpperCase()}</small>}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="pagination-row">
+        <div>
+          Menampilkan {filteredVoters.length ? `${startIndex + 1}–${startIndex + filteredVoters.length}` : '0'} dari {total.toLocaleString('id-ID')} pemilih
+        </div>
+        <div className="pagination-controls">
+          <button className="btn-outline" type="button" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page <= 1 || loading}>
+            ◀ Sebelumnya
+          </button>
+          <span>
+            Halaman {page} / {pageCount}
+          </span>
+          <button className="btn-outline" type="button" onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))} disabled={page >= pageCount || loading}>
+            Berikutnya ▶
+          </button>
+        </div>
       </div>
       </div>
     </AdminLayout>

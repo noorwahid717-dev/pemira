@@ -1,14 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  activityLogs,
-  adminOverview,
-  candidateVoteStats,
-  facultyParticipationStats,
-  participationStats,
-  quickActions,
-  tpsStatusSummary,
-} from '../data/adminDashboard'
-import type { AdminOverview, CandidateVoteStat, FacultyParticipationStat, ParticipationStats, SystemInfo, TPSStatusSummary } from '../types/admin'
+import { quickActions } from '../data/adminDashboard'
+import type { ActivityLogEntry, AdminOverview, CandidateVoteStat, FacultyParticipationStat, ParticipationStats, SystemInfo, TPSStatusSummary } from '../types/admin'
 import type { CandidateAdmin } from '../types/candidateAdmin'
 import { useAdminAuth } from './useAdminAuth'
 import { fetchMonitoringLive, type MonitoringLiveResponse } from '../services/adminMonitoring'
@@ -69,7 +61,6 @@ const mapTpsStatus = (snapshot?: MonitoringLiveResponse): TPSStatusSummary => {
       voters: item.total_votes,
       status: item.pending_checkins && item.pending_checkins > 0 ? 'issue' : 'active',
     })) ?? []
-  if (!detail.length) return tpsStatusSummary
   const issue = detail.filter((item) => item.status === 'issue').length
   const active = detail.filter((item) => item.status === 'active').length
 
@@ -86,7 +77,7 @@ const mapCandidateVotes = (snapshot: MonitoringLiveResponse, candidates: Candida
   const voteEntries = Object.entries(snapshot.candidate_votes ?? {})
   const totalVotesFromSnapshot = snapshot.total_votes || voteEntries.reduce((sum, [, value]) => sum + Number(value ?? 0), 0)
 
-  if (!voteEntries.length) return candidateVoteStats
+  if (!voteEntries.length) return []
 
   return voteEntries
     .map(([id, value], index) => {
@@ -117,10 +108,10 @@ const buildOverview = (election: AdminElectionResponse | null, totalCandidates: 
   return {
     stage,
     stageLabel: stageLabels[stage],
-    votingPeriod: period,
-    totalCandidates: totalCandidates || adminOverview.totalCandidates,
-    totalVoters: totalVoters || adminOverview.totalVoters,
-    activeMode: deriveModeLabel(election?.online_enabled, election?.tps_enabled),
+    votingPeriod: period || 'Belum ada jadwal',
+    totalCandidates: totalCandidates || 0,
+    totalVoters: totalVoters || 0,
+    activeMode: deriveModeLabel(election?.online_enabled, election?.tps_enabled) || '-',
   }
 }
 
@@ -129,14 +120,16 @@ export const useAdminDashboardData = () => {
   const [electionId, setElectionId] = useState<number>(ACTIVE_ELECTION_ID)
   const candidateCacheRef = useRef<Map<number, CandidateAdmin[]>>(new Map())
   const [overview, setOverview] = useState<AdminOverview>({
-    ...adminOverview,
+    stage: 'pendaftaran',
+    stageLabel: 'Pendaftaran',
+    votingPeriod: 'Memuat...',
     totalCandidates: 0,
     totalVoters: 0,
-    votingPeriod: 'Memuat...',
+    activeMode: '-',
   })
   const [participation, setParticipation] = useState<ParticipationStats>({ totalVoters: 0, voted: 0, notVoted: 0 })
-  const [tpsStatus, setTpsStatus] = useState<TPSStatusSummary>({ ...tpsStatusSummary, total: 0, active: 0, issue: 0, closed: 0, detail: [] })
-  const [logs, setLogs] = useState(activityLogs.length ? [] : [])
+  const [tpsStatus, setTpsStatus] = useState<TPSStatusSummary>({ total: 0, active: 0, issue: 0, closed: 0, detail: [] })
+  const [logs, setLogs] = useState<ActivityLogEntry[]>([])
   const [votes, setVotes] = useState<CandidateVoteStat[]>([])
   const [liveSystemInfo, setLiveSystemInfo] = useState<SystemInfo>({ serverStatus: 'normal', lastSync: '—', dataLocked: false })
   const [viewMode, setViewMode] = useState<'pie' | 'bar'>('bar')
@@ -226,27 +219,13 @@ export const useAdminDashboardData = () => {
     }
   }, [electionId, token])
 
-  useEffect(() => {
-    if (token) return
-    setOverview(adminOverview)
-    setParticipation(participationStats)
-    setTpsStatus(tpsStatusSummary)
-    setVotes(candidateVoteStats)
-    setLogs(activityLogs)
-    setError(undefined)
-  }, [token])
-
   const participationPercentage = useMemo(() => {
     const { voted, totalVoters } = participation
     if (!totalVoters) return 0
     return Number(((voted / totalVoters) * 100).toFixed(1))
   }, [participation])
 
-  const facultyStats = useMemo<FacultyParticipationStat[]>(() => {
-    // Belum ada endpoint partisipasi per fakultas; hindari tampilan data mock saat token ada.
-    if (token) return []
-    return facultyParticipationStats
-  }, [activeFilter, token])
+  const facultyStats = useMemo<FacultyParticipationStat[]>(() => [], [activeFilter])
 
   return {
     overview,

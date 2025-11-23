@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { dptListMock, importErrorsMock } from '../data/dptAdmin'
 import { fetchAdminDpt } from '../services/adminDpt'
+import { fetchCurrentElection } from '../services/publicElection'
 import { useAdminAuth } from './useAdminAuth'
 import type { AcademicStatus, DPTEntry, ImportMapping, ImportPreviewError, ImportStep, VoterStatus } from '../types/dptAdmin'
 
@@ -16,14 +16,18 @@ const defaultMapping: ImportMapping = {
 
 const DPTAdminContext = createContext<{
   voters: DPTEntry[]
+  total: number
+  page: number
+  limit: number
   filters: {
     search: string
     fakultas: string
     angkatan: string
     statusSuara: VoterStatus | 'all'
     akademik: AcademicStatus | 'all'
+    tipe: 'all' | 'mahasiswa' | 'dosen' | 'staf'
   }
-  setFilters: React.Dispatch<React.SetStateAction<{ search: string; fakultas: string; angkatan: string; statusSuara: VoterStatus | 'all'; akademik: AcademicStatus | 'all' }>>
+  setFilters: React.Dispatch<React.SetStateAction<{ search: string; fakultas: string; angkatan: string; statusSuara: VoterStatus | 'all'; akademik: AcademicStatus | 'all'; tipe: 'all' | 'mahasiswa' | 'dosen' | 'staf' }>>
   selected: Set<string>
   toggleSelect: (id: string) => void
   selectAll: (ids: string[]) => void
@@ -36,6 +40,7 @@ const DPTAdminContext = createContext<{
   setMapping: React.Dispatch<React.SetStateAction<ImportMapping>>
   importErrors: ImportPreviewError[]
   resetImport: () => void
+  setPage: (page: number) => void
   refresh: () => Promise<void>
   loading: boolean
   error?: string
@@ -43,13 +48,24 @@ const DPTAdminContext = createContext<{
 
 export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useAdminAuth()
-  const [voters, setVoters] = useState<DPTEntry[]>(token ? [] : dptListMock)
-  const [filters, setFilters] = useState({ search: '', fakultas: 'all', angkatan: 'all', statusSuara: 'all' as VoterStatus | 'all', akademik: 'all' as AcademicStatus | 'all' })
+  const [voters, setVoters] = useState<DPTEntry[]>([])
+  const [electionId, setElectionId] = useState<number | null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const limit = 20
+  const [filters, setFilters] = useState({
+    search: '',
+    fakultas: 'all',
+    angkatan: 'all',
+    statusSuara: 'all' as VoterStatus | 'all',
+    akademik: 'all' as AcademicStatus | 'all',
+    tipe: 'all' as 'all' | 'mahasiswa' | 'dosen' | 'staf',
+  })
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [importStep, setImportStep] = useState<ImportStep>(1)
   const [importFileName, setImportFileName] = useState<string | undefined>(undefined)
   const [mapping, setMapping] = useState<ImportMapping>(defaultMapping)
-  const [importErrors] = useState(importErrorsMock)
+  const [importErrors] = useState<ImportPreviewError[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
 
@@ -58,26 +74,52 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true)
     setError(undefined)
     try {
+      let targetElectionId = electionId
+      if (!targetElectionId) {
+        try {
+          const current = await fetchCurrentElection()
+          targetElectionId = current.id
+          setElectionId(current.id)
+        } catch (err) {
+          console.error('Failed to resolve current election', err)
+        }
+      }
+
       const params = new URLSearchParams()
-      const { items } = await fetchAdminDpt(token, params)
+      if (filters.fakultas !== 'all') params.append('faculty', filters.fakultas)
+      if (filters.angkatan !== 'all') params.append('cohort_year', filters.angkatan)
+      if (filters.statusSuara !== 'all') params.append('has_voted', filters.statusSuara === 'sudah' ? 'true' : 'false')
+      if (filters.search) params.append('search', filters.search)
+      if (filters.tipe !== 'all') {
+        const voterTypeMap = { mahasiswa: 'STUDENT', dosen: 'LECTURER', staf: 'STAFF' }
+        params.append('voter_type', voterTypeMap[filters.tipe])
+      }
+      params.append('page', page.toString())
+      params.append('limit', limit.toString())
+
+      const { items, total: totalItems } = await fetchAdminDpt(token, params, targetElectionId ?? undefined)
       setVoters(items)
+      setTotal(totalItems)
     } catch (err) {
       console.error('Failed to load DPT', err)
       setError((err as { message?: string })?.message ?? 'Gagal memuat DPT')
-      setVoters((prev) => (prev.length ? prev : dptListMock))
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [electionId, filters, limit, page, token])
 
   useEffect(() => {
-    if (token) {
+    if (!token) {
       setVoters([])
-      void refresh()
-    } else {
-      setVoters(dptListMock)
+      setElectionId(null)
+      return
     }
+    void refresh()
   }, [token, refresh])
+
+  useEffect(() => {
+    setPage(1)
+  }, [filters.fakultas, filters.angkatan, filters.search, filters.statusSuara, filters.akademik, filters.tipe])
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -103,6 +145,9 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
   const value = useMemo(
     () => ({
       voters,
+      total,
+      page,
+      limit,
       filters,
       setFilters,
       selected,
@@ -117,11 +162,31 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
       setMapping,
       importErrors,
       resetImport,
+      setPage,
       refresh,
       loading,
       error,
     }),
-    [clearSelection, error, filters, importErrors, importFileName, importStep, loading, mapping, refresh, resetImport, selectAll, selected, toggleSelect, voters],
+    [
+      clearSelection,
+      error,
+      filters,
+      importErrors,
+      importFileName,
+      importStep,
+      limit,
+      loading,
+      mapping,
+      page,
+      refresh,
+      resetImport,
+      selectAll,
+      selected,
+      setPage,
+      toggleSelect,
+      total,
+      voters,
+    ],
   )
 
   return <DPTAdminContext.Provider value={value}>{children}</DPTAdminContext.Provider>
