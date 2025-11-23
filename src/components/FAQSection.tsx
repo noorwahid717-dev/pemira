@@ -9,7 +9,7 @@ type FAQ = {
 const faqs: FAQ[] = [
   {
     question: 'Apa syarat untuk memilih?',
-    answer: 'Anda hanya perlu memiliki akun PEMIRA dan terdaftar sebagai mahasiswa aktif Universitas Wahidiyah.',
+    answer: 'Anda hanya perlu memiliki akun PEMIRA dan terdaftar sebagai mahasiswa aktif, dosen, atau staf Universitas Wahidiyah.',
   },
   {
     question: 'Bagaimana cara login?',

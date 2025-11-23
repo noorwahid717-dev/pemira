@@ -21,8 +21,8 @@ type CountdownState = {
 
 const statusLabelMap: Record<string, string> = {
   DRAFT: 'Pemilu disiapkan',
-  REGISTRATION: 'Pendaftaran calon',
-  REGISTRATION_OPEN: 'Pendaftaran calon',
+  REGISTRATION: 'Pendaftaran pemilih',
+  REGISTRATION_OPEN: 'Pendaftaran pemilih',
   CAMPAIGN: 'Masa kampanye',
   VOTING_OPEN: 'Voting dibuka',
   VOTING_CLOSED: 'Voting ditutup',
@@ -65,20 +65,43 @@ const HeroSection = ({ election, loading = false, error }: Props): JSX.Element =
   const showNoElectionState = !hasElection && !loading
   const statusLabel = loading ? 'Memuat status...' : hasElection ? statusLabelMap[election?.status ?? ''] ?? 'Pemilu aktif' : 'Belum ada pemilu aktif'
   const isVotingOpen = election?.status === 'VOTING_OPEN'
-  const primaryCtaLabel = isVotingOpen ? 'Lihat cara memilih' : 'Lihat cara memilih'
-  const primaryCtaHref = isVotingOpen ? '/panduan' : '/panduan'
-  const subtitle = 'Sistem pemilu kampus yang aman, rahasia, dan mudah digunakan oleh seluruh mahasiswa.'
+  const primaryCtaLabel = 'Registrasi'
+  const primaryCtaHref = '/register'
+  const subtitle = 'Sistem pemilu kampus yang aman, rahasia, dan mudah digunakan oleh seluruh mahasiswa, dosen, dan staf UNIWA.'
   const friendlyError =
     !loading && error && !isNoActiveElectionError ? 'Data jadwal belum dapat dimuat. Panitia sedang memperbarui informasi.' : null
   const targetDate = useMemo(() => resolveTargetDate(election), [election])
   const [countdown, setCountdown] = useState<CountdownState>(() => buildCountdown(targetDate))
 
   useEffect(() => {
-    setCountdown(buildCountdown(targetDate))
-    const interval = window.setInterval(() => {
-      setCountdown(buildCountdown(targetDate))
-    }, 1000) // Update setiap detik
-    return () => window.clearInterval(interval)
+    let interval: number | undefined
+
+    const tick = () => setCountdown(buildCountdown(targetDate))
+
+    const startInterval = () => {
+      if (interval) window.clearInterval(interval)
+      tick()
+      interval = window.setInterval(() => {
+        if (document.visibilityState === 'hidden') return
+        tick()
+      }, 1000)
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (interval) window.clearInterval(interval)
+      } else {
+        startInterval()
+      }
+    }
+
+    startInterval()
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      if (interval) window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [targetDate])
 
   const targetLabel = useMemo(
@@ -151,8 +174,8 @@ const HeroSection = ({ election, loading = false, error }: Props): JSX.Element =
             <a href={primaryCtaHref}>
               <button className="btn-primary btn-large">{primaryCtaLabel}</button>
             </a>
-            <a href="/demo">
-              <button className="btn-outline btn-large">Coba akun demo</button>
+            <a href="/panduan">
+              <button className="btn-outline btn-large">Panduan pemilihan</button>
             </a>
           </div>
 

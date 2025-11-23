@@ -41,7 +41,7 @@ const tpsSteps: StepItem[] = [
 const faqItems = [
   {
     question: 'Apa syarat memilih?',
-    answer: 'Memiliki akun PEMIRA dan terdaftar sebagai mahasiswa aktif UNIWA.',
+    answer: 'Memiliki akun PEMIRA dan terdaftar sebagai mahasiswa aktif, dosen, atau staf UNIWA.',
   },
   {
     question: 'Apa beda memilih online & offline?',
