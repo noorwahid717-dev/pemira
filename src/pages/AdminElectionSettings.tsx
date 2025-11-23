@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/admin/AdminLayout'
 import PemiraLogos from '../components/shared/PemiraLogos'
 import { useElectionSettings } from '../hooks/useElectionSettings'
@@ -14,6 +15,7 @@ const votingModeLabels: Record<VotingMode, string> = {
 type BrandingKey = 'primaryLogo' | 'secondaryLogo'
 
 const AdminElectionSettings = (): JSX.Element => {
+  const navigate = useNavigate()
   const [brandingError, setBrandingError] = useState<string | undefined>(undefined)
   const {
     statusLabel,
@@ -115,9 +117,14 @@ const AdminElectionSettings = (): JSX.Element => {
             <a className="back-link" href="/admin">
               ◀ Pengaturan Pemilu
             </a>
-            <div className="status-chip">
-              <span className="dot live" />
-              <span>{statusLabel || 'Aktif'}</span>
+            <div className="settings-actions">
+              <div className="status-chip">
+                <span className="dot live" />
+                <span>{statusLabel || 'Aktif'}</span>
+              </div>
+              <button className="btn-outline" type="button" onClick={() => navigate('/admin/pengaturan/panduan')}>
+                Panduan Alur Pemilihan
+              </button>
             </div>
           </div>
           <p className="sub-label">Mode: {votingModeLabels[mode]}</p>

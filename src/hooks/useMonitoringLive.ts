@@ -2,20 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAdminAuth } from './useAdminAuth'
 import { fetchAdminCandidates } from '../services/adminCandidates'
 import { fetchMonitoringLive, type MonitoringLiveResponse } from '../services/adminMonitoring'
-import {
-  candidateLiveStats,
-  facultyParticipationLive,
-  liveLogEntries,
-  monitoringSummary,
-  tpsLiveStatus,
-} from '../data/monitoring'
 import type { CandidateLiveStat, FacultyParticipation, LiveLogEntry, LiveSummary, TPSLiveStatus } from '../types/monitoring'
 
 const colors = ['#5b61ff', '#22ccee', '#ec4899', '#fbbf24', '#22c55e', '#a855f7']
 
 const mapSnapshotToState = (snapshot: MonitoringLiveResponse, candidatesRef: CandidateLiveStat[]): { summary: LiveSummary; candidates: CandidateLiveStat[]; tps: TPSLiveStatus[] } => {
   const totalVotes = snapshot.total_votes
-  const totalVoters = snapshot.participation.total_eligible || monitoringSummary.totalVoters
+  const totalVoters = snapshot.participation.total_eligible || 0
   const mappedCandidates =
     candidatesRef.length > 0
       ? candidatesRef.map((candidate, idx) => {
@@ -48,12 +41,12 @@ const mapSnapshotToState = (snapshot: MonitoringLiveResponse, candidatesRef: Can
     totalVoters,
     votesIn: totalVotes,
     onlineVotes: 0,
-    tpsVotes: 0,
+    tpsVotes: totalVotes,
     tpsActive: mappedTPS.length,
     tpsTotal: mappedTPS.length,
     lastUpdated: new Date(snapshot.timestamp).toLocaleTimeString('id-ID', { hour12: false }),
     statusLabel: totalVotes > 0 ? 'Voting Berlangsung' : 'Menunggu Voting',
-    statusType: 'running',
+    statusType: totalVotes > 0 ? 'running' : 'idle',
   }
 
   return { summary, candidates: mappedCandidates, tps: mappedTPS }
@@ -61,16 +54,33 @@ const mapSnapshotToState = (snapshot: MonitoringLiveResponse, candidatesRef: Can
 
 export const useMonitoringLive = () => {
   const { token } = useAdminAuth()
-  const [summary, setSummary] = useState<LiveSummary>(monitoringSummary)
-  const [candidates, setCandidates] = useState<CandidateLiveStat[]>(candidateLiveStats)
-  const [faculty] = useState<FacultyParticipation[]>(facultyParticipationLive)
-  const [tps, setTps] = useState<TPSLiveStatus[]>(tpsLiveStatus)
-  const [logs, setLogs] = useState<LiveLogEntry[]>(liveLogEntries)
+  const [summary, setSummary] = useState<LiveSummary>({
+    totalVoters: 0,
+    votesIn: 0,
+    onlineVotes: 0,
+    tpsVotes: 0,
+    tpsActive: 0,
+    tpsTotal: 0,
+    lastUpdated: '-',
+    statusLabel: 'Menunggu data',
+    statusType: 'idle',
+  })
+  const [candidates, setCandidates] = useState<CandidateLiveStat[]>([])
+  const [faculty, setFaculty] = useState<FacultyParticipation[]>([])
+  const [tps, setTps] = useState<TPSLiveStatus[]>([])
+  const [logs, setLogs] = useState<LiveLogEntry[]>([])
   const [chartMode, setChartMode] = useState<'bar' | 'pie'>('bar')
   const [publicLiveEnabled, setPublicLiveEnabled] = useState(true)
   const [filters, setFilters] = useState({ faculty: 'all', tps: 'all' })
   const [loading, setLoading] = useState(false)
   const baselineCandidatesRef = useRef<CandidateLiveStat[] | null>(null)
+  const logCounterRef = useRef(0)
+
+  const nextLogId = () => {
+    const id = `log-${Date.now()}-${logCounterRef.current}`
+    logCounterRef.current += 1
+    return id
+  }
 
   const loadSnapshot = async () => {
     if (!token) return
@@ -104,8 +114,9 @@ export const useMonitoringLive = () => {
       setSummary(mapped.summary)
       setCandidates(mapped.candidates)
       setTps(mapped.tps)
+      setFaculty([])
       setLogs((prev) => [
-        { id: `log-${Date.now()}`, timestamp: mapped.summary.lastUpdated, message: 'Snapshot diperbarui' },
+        { id: nextLogId(), timestamp: mapped.summary.lastUpdated, message: 'Snapshot diperbarui' },
         ...prev,
       ].slice(0, 200))
     } catch (err) {
@@ -131,7 +142,7 @@ export const useMonitoringLive = () => {
     }
     setSummary((prev) => ({ ...prev, lastUpdated: new Date().toLocaleTimeString('id-ID', { hour12: false }) }))
     setLogs((prev) => [
-      { id: `log-${Date.now()}`, timestamp: new Date().toLocaleTimeString('id-ID', { hour12: false }), message: 'Refresh manual (mock)' },
+      { id: nextLogId(), timestamp: new Date().toLocaleTimeString('id-ID', { hour12: false }), message: 'Refresh manual (mock)' },
       ...prev,
     ])
   }

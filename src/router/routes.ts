@@ -29,6 +29,7 @@ import AdminDPTList from '../pages/AdminDPTList'
 import AdminDPTImport from '../pages/AdminDPTImport'
 import AdminDPTDetail from '../pages/AdminDPTDetail'
 import Panduan from '../pages/Panduan'
+import AdminFlowGuide from '../pages/AdminFlowGuide'
 
 export type RouteDefinition = {
   id: string
@@ -64,6 +65,7 @@ export const appRoutes: RouteDefinition[] = [
   { id: 'admin-candidate-edit', path: '/admin/kandidat/:id/edit', Component: AdminCandidateForm, requiresAdminAuth: true },
   { id: 'admin-candidate-preview', path: '/admin/kandidat/:id/preview', Component: AdminCandidatePreview, requiresAdminAuth: true },
   { id: 'admin-election-settings', path: '/admin/pengaturan', Component: AdminElectionSettings, requiresAdminAuth: true },
+  { id: 'admin-election-flow-guide', path: '/admin/pengaturan/panduan', Component: AdminFlowGuide, requiresAdminAuth: true },
   { id: 'admin-monitoring', path: '/admin/monitoring', Component: AdminMonitoringLiveCount, requiresAdminAuth: true },
   { id: 'admin-tps-list', path: '/admin/tps', Component: AdminTPSList, requiresAdminAuth: true },
   { id: 'admin-tps-add', path: '/admin/tps/tambah', Component: AdminTPSForm, requiresAdminAuth: true },
