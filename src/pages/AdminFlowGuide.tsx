@@ -1,134 +1,82 @@
 import AdminLayout from '../components/admin/AdminLayout'
 import '../styles/AdminFlowGuide.css'
 
-const flowSections = [
+type FlowStep = {
+  label: string
+  detail: string
+  icon?: string
+}
+
+type FlowTrack = {
+  title: string
+  subtitle: string
+  badge: string
+  tone: 'purple' | 'blue' | 'green' | 'orange'
+  steps: FlowStep[]
+}
+
+const flowTracks: FlowTrack[] = [
   {
-    title: 'LEVEL 1 — Alur Besar PEMIRA',
-    body: `START
-   ↓
-Pendaftaran Pemilih
-   ↓
-Verifikasi DPT
-   ↓
-Hari H Pemungutan Suara
-   ↓
-( ONLINE ) atau ( TPS OFFLINE )
-   ↓
-Rekapitulasi Suara
-   ↓
-Publikasi Hasil
-   ↓
-END`,
+    title: 'Alur Besar PEMIRA',
+    subtitle: 'Ringkasan ujung-ke-ujung',
+    badge: 'LEVEL 1',
+    tone: 'purple',
+    steps: [
+      { label: 'Pendaftaran Pemilih', detail: 'Mahasiswa, dosen, staf mendaftar sesuai mode pilihan.', icon: '📝' },
+      { label: 'Verifikasi DPT', detail: 'Validasi identitas & penentuan hak pilih (ONLINE / TPS).', icon: '🔎' },
+      { label: 'Hari H Pemungutan Suara', detail: 'Online via portal atau offline di TPS.', icon: '📅' },
+      { label: 'Rekapitulasi Suara', detail: 'Tarik suara ONLINE + TPS, audit, dan validasi.', icon: '📊' },
+      { label: 'Publikasi Hasil', detail: 'Umumkan hasil final setelah verifikasi panitia.', icon: '📢' },
+    ],
   },
   {
-    title: 'LEVEL 2 — Pendaftaran Pemilih (Online + Offline)',
-    body: `[User Membuka Halaman Pendaftaran]
-               ↓
-         Input Data
-  (Nama, NIM, Prodi, Email, dst)
-               ↓
-        Pilih Mode Pemilihan
-         ┌───────────────┐
-         │    ONLINE     │
-         └───────────────┘
-                atau
-         ┌───────────────┐
-         │    OFFLINE    │
-         │     (TPS)     │
-         └───────────────┘
-               ↓
-           Submit Form
-               ↓
-    ┌───────────────────────────────┬───────────────────────────────┐
-    │ ONLINE                        │ OFFLINE (TPS)                 │
-    ↓                               ↓                               │
-[Generate Akun Login]        [Generate QR Pendaftaran]             │
-[Akses dikirim ke email]     [Tampilkan QR + tombol unduh/print]   │
-    ↓                               ↓                               │
- Masuk DPT Online             Masuk DPT Offline (TPS)               │
-    ↓                               ↓                               │
-           Pendaftaran Selesai (END)`,
+    title: 'Pendaftaran Pemilih',
+    subtitle: 'Online & TPS',
+    badge: 'LEVEL 2',
+    tone: 'blue',
+    steps: [
+      { label: 'Isi Data', detail: 'Nama, NIM/NIDN/NIP, prodi/unit, email (opsional), password.', icon: '🧾' },
+      { label: 'Pilih Mode', detail: 'ONLINE: hanya portal. TPS: akan dapat QR pendaftaran.', icon: '🎯' },
+      { label: 'Submit Form', detail: 'System membuat akun & status DPT sesuai mode.', icon: '✅' },
+      { label: 'Hasil', detail: 'ONLINE → langsung login. TPS → tampilkan/unduh QR pendaftaran.', icon: '🎟️' },
+    ],
   },
   {
-    title: 'LEVEL 3 — Alur Voting Online',
-    body: `[User Login]
-    ↓
-[System validasi: DPT Online?]
-    ↓
-[Masuk Dashboard Pemilih]
-    ↓
-Klik "Lihat Kandidat"
-    ↓
-Pilih Kandidat → Konfirmasi
-    ↓
-POST /voting/online/cast
-    ↓
-System:
-  - Validasi belum voting
-  - Catat vote (channel=ONLINE)
-  - Update voter_status
-    ↓
-Tampilkan "Suara Berhasil Direkam"
-    ↓
-Selesai`,
+    title: 'Voting Online',
+    subtitle: 'Portal PEMIRA',
+    badge: 'LEVEL 3',
+    tone: 'green',
+    steps: [
+      { label: 'Login', detail: 'Validasi akun & hak pilih ONLINE.', icon: '🔐' },
+      { label: 'Lihat Kandidat', detail: 'Baca profil & program kerja.', icon: '🧭' },
+      { label: 'Pilih & Konfirmasi', detail: 'Kunci pilihan, kirim suara (channel=ONLINE).', icon: '🗳️' },
+      { label: 'Status Tercatat', detail: 'System update voter_status & log suara.', icon: '📌' },
+    ],
   },
   {
-    title: 'LEVEL 4 — Alur Voting Offline (TPS + QR Pendaftaran + QR Paslon)',
-    body: `4.1 Kedatangan di TPS
-Pemilih Datang → Tunjukkan QR Pendaftaran
-      ↓
-Operator Scan QR (Check-in)
-      ↓
-System:
-  - Validasi QR & identitas
-  - Buat row di tps_checkins (status=PENDING)
-      ↓
-Operator Menyetujui (Approve)
-      ↓
-System → tps_checkins.status = APPROVED
-      ↓
-Pemilih Ambil Surat Suara
-
-4.2 Masuk Bilik Suara & Scan QR Paslon
-Pemilih Masuk Bilik → Mencoblos Surat Suara
-      ↓
-Scan QR Paslon di Surat Suara (oleh operator/pemilih)
-      ↓
-POST /tps/{tpsID}/checkins/{checkinID}/scan-candidate
-      ↓
-System:
-  - Parse QR paslon (candidate_id, election_id)
-  - Validasi checkin (APPROVED)
-  - Cek belum voting
-  - Insert vote (channel = TPS)
-  - Update tps_checkins.status = VOTED
-  - Log scan ke tps_ballot_scans
-      ↓
-Operator memberi izin memasukkan surat suara ke kotak
-      ↓
-Pemilih celup tinta
-      ↓
-Selesai`,
+    title: 'Voting TPS',
+    subtitle: 'QR Pendaftaran + QR Paslon',
+    badge: 'LEVEL 4',
+    tone: 'orange',
+    steps: [
+      { label: 'Check-in', detail: 'Tunjukkan QR pendaftaran di TPS → panitia scan & approve.', icon: '📱' },
+      { label: 'Ambil Surat Suara', detail: 'Status checkin APPROVED, pemilih masuk bilik.', icon: '🧾' },
+      { label: 'Scan QR Paslon', detail: 'Scan QR pada surat suara → catat vote (channel=TPS).', icon: '🗳️' },
+      { label: 'Selesai', detail: 'Update status VOTED, tinta jari, keluar TPS.', icon: '✅' },
+    ],
   },
   {
-    title: 'LEVEL 5 — Rekapitulasi & Penghitungan Suara',
-    body: `Sumber Data:
-
-Online → tabel votes.channel = ONLINE
-
-Offline TPS → tabel votes.channel = TPS
-
-Voting Ditutup
-      ↓
-System Tarik Semua Votes (ONLINE + TPS)
-      ↓
-Hitung Total per Kandidat
-      ↓
-Buat Rekap per Fakultas, per TPS, per Mode
-      ↓
-Validasi Panitia + Audit
-      ↓
-Publikasi Hasil PEMIRA`,
+    title: 'Rekapitulasi & Audit',
+    subtitle: 'Penggabungan ONLINE + TPS',
+    badge: 'LEVEL 5',
+    tone: 'purple',
+    steps: [
+      { label: 'Tutup Voting', detail: 'Pastikan semua channel berhenti menerima suara.', icon: '⛔' },
+      { label: 'Tarik Data Suara', detail: 'Kumpulkan votes ONLINE + TPS.', icon: '⬇️' },
+      { label: 'Hitung & Segmentasi', detail: 'Total per kandidat, per fakultas, per TPS, per mode.', icon: '📈' },
+      { label: 'Audit & Validasi', detail: 'Cek duplikasi/anomali, verifikasi panitia.', icon: '🛡️' },
+      { label: 'Publikasi', detail: 'Umumkan hasil final dan bagikan ringkasan.', icon: '📣' },
+    ],
   },
 ]
 
@@ -139,8 +87,8 @@ const AdminFlowGuide = (): JSX.Element => {
         <header className="flow-hero">
           <div>
             <p className="pill">Panduan</p>
-            <h1>Alur Pemilihan PEMIRA UNIWA</h1>
-            <p className="muted">Flow diagram lengkap dari pendaftaran sampai publikasi hasil.</p>
+            <h1>Alur Pemilihan PEMIRA</h1>
+            <p className="muted">Visual sederhana untuk panitia non-teknis. Ikuti urutannya, tidak perlu membaca diagram kasar.</p>
           </div>
           <button className="btn-outline" type="button" onClick={() => window.history.back()}>
             ◀ Kembali
@@ -148,13 +96,45 @@ const AdminFlowGuide = (): JSX.Element => {
         </header>
 
         <div className="flow-grid">
-          {flowSections.map((section) => (
-            <article key={section.title} className="flow-card">
-              <h2>{section.title}</h2>
-              <pre>{section.body}</pre>
+          {flowTracks.map((track) => (
+            <article key={track.title} className={`flow-card tone-${track.tone}`}>
+              <div className="flow-card-head">
+                <span className="pill soft">{track.badge}</span>
+                <div>
+                  <h2>{track.title}</h2>
+                  <p className="muted">{track.subtitle}</p>
+                </div>
+              </div>
+              <ol className="flow-steps">
+                {track.steps.map((step) => (
+                  <li key={step.label} className="flow-step">
+                    <div className="step-icon">{step.icon ?? '•'}</div>
+                    <div className="step-content">
+                      <p className="step-label">{step.label}</p>
+                      <p className="step-detail">{step.detail}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             </article>
           ))}
         </div>
+
+        <section className="flow-callout">
+          <div>
+            <p className="pill soft">Tips Panitia</p>
+            <h3>Checklist cepat</h3>
+            <ul>
+              <li>Pastikan mode pemilihan (ONLINE/TPS) sesuai jadwal election.</li>
+              <li>Siapkan printer QR untuk pemilih TPS dan pastikan scanner berfungsi.</li>
+              <li>Jaga hotline bantuan pada hari H untuk kendala login atau QR.</li>
+            </ul>
+          </div>
+          <div className="callout-note">
+            <strong>Butuh versi print?</strong>
+            <p>Gunakan fitur cetak browser di halaman ini untuk membagikan ke panitia lapangan.</p>
+          </div>
+        </section>
       </div>
     </AdminLayout>
   )
