@@ -24,23 +24,20 @@ export type DashboardData = {
 const determineCurrentStage = (election: PublicElection | null, phases: PublicPhase[]): PemiraStage => {
   if (!election) return 'registration'
 
-  const now = new Date()
-  
-  // Check voting window first
-  if (election.voting_start_at && election.voting_end_at) {
-    const votingStart = new Date(election.voting_start_at)
-    const votingEnd = new Date(election.voting_end_at)
-    
-    if (now >= votingStart && now <= votingEnd) {
-      return 'voting'
-    }
-    
-    if (now > votingEnd) {
-      return 'rekapitulasi'
-    }
+  // Use current_phase from backend if available (already calculated correctly)
+  if (election.current_phase) {
+    const phase = election.current_phase.toUpperCase()
+    if (phase === 'REGISTRATION') return 'registration'
+    if (phase === 'VERIFICATION') return 'verification'
+    if (phase === 'CAMPAIGN') return 'campaign'
+    if (phase === 'QUIET_PERIOD') return 'silence'
+    if (phase === 'VOTING') return 'voting'
+    if (phase === 'RECAP' || phase === 'RECAPITULATION') return 'rekapitulasi'
   }
 
-  // Check from phases
+  const now = new Date()
+  
+  // Check from phases (fallback)
   for (const phase of phases) {
     if (phase.start_at && phase.end_at) {
       const start = new Date(phase.start_at)
@@ -48,29 +45,19 @@ const determineCurrentStage = (election: PublicElection | null, phases: PublicPh
       
       if (now >= start && now <= end) {
         const key = phase.key || phase.phase || ''
-        if (key.toLowerCase().includes('campaign') || key.toLowerCase().includes('kampanye')) {
-          return 'campaign'
-        }
-        if (key.toLowerCase().includes('silence') || key.toLowerCase().includes('tenang')) {
-          return 'silence'
-        }
-        if (key.toLowerCase().includes('voting') || key.toLowerCase().includes('pemilihan')) {
-          return 'voting'
-        }
-        if (key.toLowerCase().includes('recap') || key.toLowerCase().includes('rekapitulasi')) {
-          return 'rekapitulasi'
-        }
+        const keyLower = key.toLowerCase()
+        if (keyLower.includes('registration') || keyLower.includes('pendaftaran')) return 'registration'
+        if (keyLower.includes('verification') || keyLower.includes('verifikasi')) return 'verification'
+        if (keyLower.includes('campaign') || keyLower.includes('kampanye')) return 'campaign'
+        if (keyLower.includes('quiet') || keyLower.includes('tenang')) return 'silence'
+        if (keyLower.includes('voting') || keyLower.includes('pemilihan')) return 'voting'
+        if (keyLower.includes('recap') || keyLower.includes('rekapitulasi')) return 'rekapitulasi'
       }
     }
   }
 
-  // Fallback based on election status
-  if (election.status === 'VOTING_OPEN') return 'voting'
-  if (election.status === 'VOTING_CLOSED' || election.status === 'CLOSED') return 'rekapitulasi'
-  if (election.status === 'CAMPAIGN') return 'campaign'
-  if (election.status === 'REGISTRATION' || election.status === 'REGISTRATION_OPEN') return 'registration'
-
-  return 'campaign'
+  // Default fallback
+  return 'registration'
 }
 
 export const useDashboardPemilih = (token: string | null) => {

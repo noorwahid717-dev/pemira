@@ -11,6 +11,7 @@ import {
 } from '../services/adminTps'
 import type { TPSAdmin } from '../types/tpsAdmin'
 import { useAdminAuth } from './useAdminAuth'
+import { useActiveElection } from './useActiveElection'
 
 const initialForm: TPSAdmin = {
   id: '',
@@ -43,6 +44,7 @@ const TPSAdminContext = createContext<{
 
 export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useAdminAuth()
+  const { activeElectionId } = useActiveElection()
   const [tpsList, setTPSList] = useState<TPSAdmin[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
@@ -52,11 +54,11 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
   const createEmpty = useCallback(() => ({ ...initialForm }), [])
 
   const refresh = useCallback(async () => {
-    if (!token) return
+    if (!token || !activeElectionId) return
     setLoading(true)
     setError(undefined)
     try {
-      const items = await fetchAdminTpsList(token)
+      const items = await fetchAdminTpsList(token, activeElectionId)
       setTPSList(items)
     } catch (err) {
       console.error('Failed to load TPS', err)
@@ -64,11 +66,11 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [activeElectionId, token])
 
   useEffect(() => {
     setTPSList([])
-  }, [token])
+  }, [token, activeElectionId])
 
   useEffect(() => {
     void refresh()
@@ -78,7 +80,7 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
     async (payload: TPSAdmin) => {
       if (!token) throw new Error('Admin token diperlukan untuk menyimpan TPS')
       const isUpdate = Boolean(payload.id && tpsList.some((tps) => tps.id === payload.id))
-      let saved = isUpdate ? await updateAdminTps(token, payload.id, payload) : await createAdminTps(token, payload)
+      let saved = isUpdate ? await updateAdminTps(token, payload.id, payload, activeElectionId) : await createAdminTps(token, payload, activeElectionId)
       if (!isUpdate && payload.status === 'inactive' && saved.status !== 'inactive') {
         saved = await updateAdminTps(token, saved.id, { ...saved, status: 'inactive' })
       }
@@ -89,7 +91,7 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
       })
       return saved
     },
-    [tpsList, token],
+    [activeElectionId, tpsList, token],
   )
 
   const loadDetail = useCallback(
@@ -103,7 +105,7 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
       setError(undefined)
       try {
         const [detail, qrMeta] = await Promise.all([
-          fetchAdminTpsDetail(token, id),
+          fetchAdminTpsDetail(token, id, activeElectionId),
           fetchAdminTpsQrMetadata(token, id).catch(() => undefined),
         ])
         const qrPayload = qrMeta?.qrAktif ? await fetchAdminTpsQrForPrint(token, id).catch(() => undefined) : undefined
@@ -128,7 +130,7 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false)
       }
     },
-    [token],
+    [activeElectionId, token],
   )
 
   const rotateQr = useCallback(

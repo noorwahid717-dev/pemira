@@ -134,7 +134,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
   }
 
   const handleViewCandidates = () => {
-    navigate('/kandidat')
+    navigate('/dashboard/kandidat')
   }
 
   const handleDownloadQR = () => {
@@ -492,19 +492,19 @@ const DashboardPemilihHiFi = (): JSX.Element => {
             <span className="nav-icon">🏠</span>
             <span className="nav-label">Beranda</span>
           </button>
-          <button className="nav-item" onClick={handleViewCandidates}>
+          <button className="nav-item" onClick={() => navigate('/dashboard/kandidat')}>
             <span className="nav-icon">👥</span>
             <span className="nav-label">Kandidat</span>
           </button>
-          <button className="nav-item">
+          <button className="nav-item" onClick={() => navigate('/dashboard/riwayat')}>
             <span className="nav-icon">📜</span>
             <span className="nav-label">Riwayat</span>
           </button>
-          <button className="nav-item">
+          <button className="nav-item" onClick={() => navigate('/dashboard/bantuan')}>
             <span className="nav-icon">❓</span>
             <span className="nav-label">Bantuan</span>
           </button>
-          <button className="nav-item">
+          <button className="nav-item" onClick={() => navigate('/dashboard/profil')}>
             <span className="nav-icon">👤</span>
             <span className="nav-label">Profil</span>
           </button>

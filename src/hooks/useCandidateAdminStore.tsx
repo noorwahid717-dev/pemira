@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createAdminCandidate, fetchAdminCandidates, updateAdminCandidate } from '../services/adminCandidates'
 import { useAdminAuth } from './useAdminAuth'
+import { useActiveElection } from './useActiveElection'
 import type { CandidateAdmin, CandidateProgramAdmin, CandidateStatus } from '../types/candidateAdmin'
 
 const generateId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`
@@ -41,16 +42,17 @@ const CandidateAdminContext = createContext<{
 
 export const CandidateAdminProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useAdminAuth()
+  const { activeElectionId } = useActiveElection()
   const [candidates, setCandidates] = useState<CandidateAdmin[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
 
   const refresh = useCallback(async () => {
-    if (!token) return
+    if (!token || !activeElectionId) return
     setLoading(true)
     setError(undefined)
     try {
-      const items = await fetchAdminCandidates(token)
+      const items = await fetchAdminCandidates(token, activeElectionId)
       setCandidates(items)
     } catch (err) {
       console.error('Failed to fetch candidates', err)
@@ -58,11 +60,11 @@ export const CandidateAdminProvider = ({ children }: { children: ReactNode }) =>
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [activeElectionId, token])
 
   useEffect(() => {
     setCandidates([])
-  }, [token])
+  }, [token, activeElectionId])
 
   useEffect(() => {
     void refresh()
@@ -75,22 +77,22 @@ export const CandidateAdminProvider = ({ children }: { children: ReactNode }) =>
   const addCandidate = useCallback(
     async (payload: CandidateAdmin) => {
       if (!token) throw new Error('Admin token diperlukan untuk menambah kandidat')
-      const created = await createAdminCandidate(token, payload)
+      const created = await createAdminCandidate(token, payload, activeElectionId)
       setCandidates((prev) => [created, ...prev])
       return created
     },
-    [token],
+    [activeElectionId, token],
   )
 
   const updateCandidate = useCallback(
     async (id: string, payload: Partial<CandidateAdmin>) => {
       const baseCandidate = getCandidateById(id) ?? { ...createEmptyCandidate(), id }
       if (!token) throw new Error('Admin token diperlukan untuk memperbarui kandidat')
-      const updated = await updateAdminCandidate(token, id, { ...baseCandidate, ...payload } as CandidateAdmin)
+      const updated = await updateAdminCandidate(token, id, { ...baseCandidate, ...payload } as CandidateAdmin, true, activeElectionId)
       setCandidates((prev) => prev.map((candidate) => (candidate.id === id ? updated : candidate)))
       return updated
     },
-    [createEmptyCandidate, getCandidateById, token],
+    [activeElectionId, createEmptyCandidate, getCandidateById, token],
   )
 
   const archiveCandidate = useCallback(

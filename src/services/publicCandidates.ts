@@ -1,4 +1,4 @@
-import { ACTIVE_ELECTION_ID } from '../config/env'
+import { getActiveElectionId } from '../state/activeElection'
 import type { Candidate } from '../types/voting'
 import { apiRequest } from '../utils/apiClient'
 
@@ -45,7 +45,7 @@ export const fetchPublicCandidates = async (options?: {
   token?: string
   electionId?: number
 }): Promise<Candidate[]> => {
-  const { signal, token, electionId = ACTIVE_ELECTION_ID } = options ?? {}
+  const { signal, token, electionId = getActiveElectionId() } = options ?? {}
   const parseItems = (response: any) => {
     if (Array.isArray(response?.data?.items)) return response.data.items
     if (Array.isArray(response?.items)) return response.items
@@ -75,15 +75,16 @@ export const fetchPublicCandidateDetail = async (
 ): Promise<PublicCandidateDetailResponse> => {
   const { signal, token } = options ?? {}
   const parseDetail = (response: any) => response?.data ?? response
+  const electionId = getActiveElectionId()
 
   try {
-    const response = await apiRequest<any>(`/elections/${ACTIVE_ELECTION_ID}/candidates/${candidateId}`, { signal })
+    const response = await apiRequest<any>(`/elections/${electionId}/candidates/${candidateId}`, { signal })
     const detail = parseDetail(response)
     if (!detail) throw new Error('Invalid candidate detail response')
     return detail as PublicCandidateDetailResponse
   } catch (err) {
     if (token) {
-      const fallback = await apiRequest<any>(`/admin/candidates/${candidateId}?election_id=${ACTIVE_ELECTION_ID}`, { signal, token })
+      const fallback = await apiRequest<any>(`/admin/candidates/${candidateId}?election_id=${electionId}`, { signal, token })
       const detail = parseDetail(fallback)
       if (!detail) throw new Error('Invalid admin candidate detail response')
       return detail as PublicCandidateDetailResponse

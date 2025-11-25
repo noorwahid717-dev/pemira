@@ -4,6 +4,7 @@ import AdminLayout from '../components/admin/AdminLayout'
 import { useElectionSettings } from '../hooks/useElectionSettings'
 import { useToast } from '../components/Toast'
 import { usePopup } from '../components/Popup'
+import { useActiveElection } from '../hooks/useActiveElection'
 import type { VotingMode } from '../types/electionSettings'
 import '../styles/AdminElectionSettings.css'
 
@@ -29,13 +30,24 @@ const quickLinks = [
 
 const AdminElectionSettings = (): JSX.Element => {
   const navigate = useNavigate()
+  const { showToast } = useToast()
+  const { showPopup } = usePopup()
+  const {
+    activeElectionId,
+    defaultElectionId,
+    elections,
+    loading: activeSettingsLoading,
+    updating: activeSettingsUpdating,
+    error: activeElectionError,
+    setActiveElection,
+    createElection,
+  } = useActiveElection()
   const [activeTab, setActiveTab] = useState<typeof tabs[number]['id']>('info')
   const [onlineLoginUrl, setOnlineLoginUrl] = useState('https://pemira.uniwa.ac.id')
   const [maxOnlineSessions, setMaxOnlineSessions] = useState(3)
   const [tpsActiveCount, setTpsActiveCount] = useState(5)
-
-  const { showToast } = useToast()
-  const { showPopup } = usePopup()
+  const [selectedElectionId, setSelectedElectionId] = useState<number | ''>(activeElectionId)
+  const [newElection, setNewElection] = useState({ name: '', slug: '', year: new Date().getFullYear(), description: '' })
   const {
     basicInfo,
     updateBasicInfo,
@@ -61,6 +73,7 @@ const AdminElectionSettings = (): JSX.Element => {
     saveTimeline,
     loading,
     error,
+    refreshElection,
   } = useElectionSettings()
 
   const allowOnline = mode === 'online' || mode === 'hybrid'
@@ -78,6 +91,20 @@ const AdminElectionSettings = (): JSX.Element => {
       setTpsActiveCount(summary.active_tps)
     }
   }, [summary.active_tps])
+
+  useEffect(() => {
+    setSelectedElectionId(activeElectionId)
+  }, [activeElectionId])
+
+  const sortedElections = useMemo(
+    () =>
+      [...elections].sort((a, b) => {
+        const yearA = a.year ?? 0
+        const yearB = b.year ?? 0
+        return yearB - yearA || a.id - b.id
+      }),
+    [elections],
+  )
 
   const formatNumber = (value?: number) => {
     if (value === undefined || value === null) return '0'
@@ -202,6 +229,47 @@ const AdminElectionSettings = (): JSX.Element => {
     }
   }
 
+  const handleActivateElection = async () => {
+    const targetId = Number(selectedElectionId)
+    if (!targetId || targetId === activeElectionId) {
+      showToast('Pilih pemilu berbeda untuk dijadikan aktif.', 'info')
+      return
+    }
+    try {
+      const updatedId = await setActiveElection(targetId)
+      await refreshElection(updatedId)
+      showToast(`Pemilu aktif diubah ke ID ${updatedId}.`, 'success')
+    } catch (err) {
+      console.error(err)
+      showToast('Gagal mengubah pemilu aktif.', 'error')
+    }
+  }
+
+  const handleCreateElection = async () => {
+    const parsedYear = Number.parseInt(String(newElection.year), 10)
+    if (!newElection.name.trim() || !newElection.slug.trim() || Number.isNaN(parsedYear)) {
+      showToast('Lengkapi nama, slug, dan tahun pemilu.', 'warning')
+      return
+    }
+
+    try {
+      const created = await createElection({
+        name: newElection.name.trim(),
+        slug: newElection.slug.trim(),
+        year: parsedYear,
+        description: newElection.description.trim() || undefined,
+      })
+      showToast('Pemilu baru berhasil dibuat.', 'success')
+      setSelectedElectionId(created.id)
+      await setActiveElection(created.id)
+      await refreshElection(created.id)
+      setNewElection({ name: '', slug: '', year: new Date().getFullYear(), description: '' })
+    } catch (err) {
+      console.error(err)
+      showToast('Gagal membuat pemilu baru.', 'error')
+    }
+  }
+
   const quickAction = (path: string) => {
     navigate(path)
   }
@@ -236,6 +304,102 @@ const AdminElectionSettings = (): JSX.Element => {
             </button>
           </div>
         </header>
+
+        <section className="card active-election-card">
+          <div className="card-head">
+            <div>
+              <p className="eyebrow">Pemilu Aktif</p>
+              <h2>Atur Pemilu yang Dipakai Panel Admin</h2>
+              <p className="sub-label">Default ID: {defaultElectionId || '-'}</p>
+            </div>
+            {(activeElectionError || error) && <span className="error-text">{activeElectionError || error}</span>}
+          </div>
+          <div className="active-election-grid">
+            <div className="selector-panel">
+              <label>
+                Pilih Pemilu Aktif
+                <select
+                  value={selectedElectionId}
+                  onChange={(event) => setSelectedElectionId(event.target.value ? Number(event.target.value) : '')}
+                  disabled={activeSettingsLoading || activeSettingsUpdating || (!sortedElections.length && !selectedElectionId)}
+                >
+                  {sortedElections.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name || `Pemilu ${item.year ?? ''}`} {item.year ? `(${item.year})` : ''} • ID {item.id}
+                    </option>
+                  ))}
+                  {!sortedElections.length && (
+                    <option value={activeElectionId}>Pemilu aktif ID {activeElectionId}</option>
+                  )}
+                </select>
+              </label>
+              <button
+                className="btn-primary"
+                type="button"
+                onClick={handleActivateElection}
+                disabled={activeSettingsUpdating || activeSettingsLoading}
+              >
+                {activeSettingsUpdating ? 'Menyimpan...' : 'Set sebagai Pemilu Aktif'}
+              </button>
+              <p className="hint">Semua modul admin akan otomatis menggunakan ID ini.</p>
+            </div>
+
+            <div className="selector-panel new-election-form">
+              <p className="eyebrow">Buat Pemilu Baru</p>
+              <label>
+                Nama Pemilu
+                <input
+                  type="text"
+                  value={newElection.name}
+                  onChange={(event) => setNewElection((prev) => ({ ...prev, name: event.target.value }))}
+                  placeholder="PEMIRA BEM 2027"
+                />
+              </label>
+              <div className="split-field">
+                <label>
+                  Slug
+                  <input
+                    type="text"
+                    value={newElection.slug}
+                    onChange={(event) => setNewElection((prev) => ({ ...prev, slug: event.target.value }))}
+                    placeholder="pemira-2027"
+                  />
+                </label>
+                <label>
+                  Tahun
+                  <input
+                    type="number"
+                    value={newElection.year}
+                    onChange={(event) => setNewElection((prev) => ({ ...prev, year: Number(event.target.value) }))}
+                    min={2000}
+                  />
+                </label>
+              </div>
+              <label>
+                Deskripsi
+                <textarea
+                  value={newElection.description}
+                  onChange={(event) => setNewElection((prev) => ({ ...prev, description: event.target.value }))}
+                  placeholder="Deskripsi singkat pemilu..."
+                />
+              </label>
+              <div className="card-actions">
+                <button className="btn-primary" type="button" onClick={handleCreateElection} disabled={activeSettingsUpdating}>
+                  {activeSettingsUpdating ? 'Memproses...' : 'Buat & Aktifkan'}
+                </button>
+                <button
+                  className="btn-outline"
+                  type="button"
+                  onClick={() => setNewElection({ name: '', slug: '', year: new Date().getFullYear(), description: '' })}
+                  disabled={activeSettingsUpdating}
+                >
+                  Reset Draft
+                </button>
+              </div>
+            </div>
+          </div>
+          {activeSettingsLoading && <p className="sub-label">Memuat daftar pemilu...</p>}
+        </section>
 
         <div className="tabs-card">
           <div className="tab-list">

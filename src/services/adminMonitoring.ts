@@ -1,5 +1,5 @@
-import { ACTIVE_ELECTION_ID } from '../config/env'
 import { apiRequest } from '../utils/apiClient'
+import { getActiveElectionId } from '../state/activeElection'
 
 export type MonitoringLiveResponse = {
   election_id: number
@@ -30,7 +30,7 @@ const unwrap = <T>(payload: { data?: T } | T): T => {
   return payload as T
 }
 
-export const fetchMonitoringLive = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<MonitoringLiveResponse> => {
+export const fetchMonitoringLive = async (token: string, electionId: number = getActiveElectionId()): Promise<MonitoringLiveResponse> => {
   const response = await apiRequest<MonitoringLiveResponse | { data: MonitoringLiveResponse }>(`/admin/monitoring/live-count/${electionId}`, {
     token,
   })

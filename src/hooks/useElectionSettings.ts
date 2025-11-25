@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { electionStatusOptions, initialBranding, initialElectionStatus, initialRules, initialTimeline, initialVotingMode } from '../data/electionSettings'
-import { ACTIVE_ELECTION_ID } from '../config/env'
 import {
   archiveAdminElection,
   closeAdminElectionVoting,
@@ -26,6 +25,8 @@ import { fetchCurrentElection } from '../services/publicElection'
 import type { BrandingSettings, ElectionRules, ElectionStatus, TimelineStage, VotingMode } from '../types/electionSettings'
 import type { ApiError } from '../utils/apiClient'
 import { useAdminAuth } from './useAdminAuth'
+import { useActiveElection } from './useActiveElection'
+import { getActiveElectionId } from '../state/activeElection'
 
 type BasicElectionInfo = {
   name: string
@@ -114,6 +115,7 @@ const toIsoOrNull = (value: string): string | null => {
 
 export const useElectionSettings = () => {
   const { token } = useAdminAuth()
+  const { activeElectionId } = useActiveElection()
   const thisYear = new Date().getFullYear()
   const [basicInfo, setBasicInfo] = useState<BasicElectionInfo>({
     name: 'Pemira Kampus',
@@ -122,7 +124,7 @@ export const useElectionSettings = () => {
     academicYear: `${thisYear - 1}/${thisYear}`,
     description: 'Pemilihan Ketua & Wakil BEM serta anggota MPM Universitas Wijaya Kusuma.',
   })
-  const [currentElectionId, setCurrentElectionId] = useState<number>(ACTIVE_ELECTION_ID)
+  const [currentElectionId, setCurrentElectionId] = useState<number>(getActiveElectionId())
   const [status, setStatus] = useState<ElectionStatus>(initialElectionStatus)
   const [mode, setMode] = useState<VotingMode>(initialVotingMode)
   const [timeline, setTimeline] = useState<TimelineStage[]>(initialTimeline)
@@ -143,6 +145,10 @@ export const useElectionSettings = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
   const brandingObjectUrlRef = useRef<{ primary?: string; secondary?: string }>({})
+  const resolveElectionId = useCallback(
+    () => currentElectionId || activeElectionId || getActiveElectionId(),
+    [activeElectionId, currentElectionId],
+  )
 
   const isModeChangeDisabled = status === 'voting_dibuka' || status === 'voting_ditutup'
 
@@ -283,7 +289,7 @@ export const useElectionSettings = () => {
         return
       }
       try {
-        const electionId = targetId || currentElectionId || ACTIVE_ELECTION_ID
+        const electionId = targetId || resolveElectionId()
         const meta = await fetchBranding(token, electionId)
         await loadBrandingLogos(meta, electionId)
       } catch (err) {
@@ -291,75 +297,87 @@ export const useElectionSettings = () => {
         setError((err as { message?: string })?.message ?? 'Gagal memuat branding')
       }
     },
-    [currentElectionId, loadBrandingLogos, revokeLogoUrl, token],
+    [loadBrandingLogos, resolveElectionId, revokeLogoUrl, token],
   )
 
-  const refreshElection = useCallback(async () => {
-    if (!token) return
-    setLoading(true)
-    setError(undefined)
-    try {
-      const electionId = currentElectionId || ACTIVE_ELECTION_ID
-      let resolvedElectionId = electionId
-
+  const refreshElection = useCallback(
+    async (targetId?: number) => {
+      if (!token) return
+      setLoading(true)
+      setError(undefined)
       try {
-        const settings = await fetchAdminElectionSettings(token, electionId)
-        if (settings?.election) {
-          applyElectionData(settings.election as AdminElectionResponse)
-          resolvedElectionId = settings.election.id
-        }
-        if (settings?.phases) setTimelineFromPhases(settings.phases as ElectionPhase[] | { phases?: ElectionPhase[] })
-        if (settings?.mode_settings) setMode(mapModeFromFlags(settings.mode_settings.online_enabled, settings.mode_settings.tps_enabled))
-      } catch (settingsErr) {
-        console.warn('Fallback to legacy settings endpoints', settingsErr)
-        const election = await fetchElectionWithFallback(electionId)
-        applyElectionData(election)
-        resolvedElectionId = election.id
-        const phases = await fetchElectionPhases(token, election.id).catch(() => null)
-        if (phases) setTimelineFromPhases(phases)
-        const modeSettings = await fetchElectionMode(token, election.id).catch(() => null)
-        if (modeSettings) setMode(mapModeFromFlags(modeSettings.online_enabled, modeSettings.tps_enabled))
-      }
+        const electionId = targetId ?? resolveElectionId()
+        let resolvedElectionId = electionId
 
-      const summaryData = await fetchElectionSummary(token, resolvedElectionId).catch(() => null)
-      if (summaryData) {
-        setSummary(summaryData)
-      } else {
-        setSummary((prev) => prev)
-      }
-
-      // Fallback counts if summary missing/zero
-      if (!summaryData || !summaryData.total_candidates || !summaryData.total_voters || !summaryData.active_tps) {
         try {
-          const [candidates, dptSummary, tpsList] = await Promise.all([
-            fetchAdminCandidates(token, resolvedElectionId).catch(() => []),
-            fetchAdminDpt(token, new URLSearchParams({ limit: '1', page: '1' }), resolvedElectionId).catch(() => ({ total: 0 })),
-            fetchAdminTpsList(token, resolvedElectionId).catch(() => []),
-          ])
-          setSummary({
-            total_candidates: candidates.length || summary.total_candidates,
-            total_voters: (dptSummary as any).total ?? summary.total_voters,
-            online_voters: summary.online_voters,
-            tps_voters: summary.tps_voters,
-            active_tps: tpsList.filter((tps) => tps.status === 'active').length || summary.active_tps,
-          })
-        } catch {
-          // ignore fallback errors
+          const settings = await fetchAdminElectionSettings(token, electionId)
+          if (settings?.election) {
+            applyElectionData(settings.election as AdminElectionResponse)
+            resolvedElectionId = settings.election.id
+            setCurrentElectionId(settings.election.id)
+          }
+          if (settings?.phases) setTimelineFromPhases(settings.phases as ElectionPhase[] | { phases?: ElectionPhase[] })
+          if (settings?.mode_settings) setMode(mapModeFromFlags(settings.mode_settings.online_enabled, settings.mode_settings.tps_enabled))
+        } catch (settingsErr) {
+          console.warn('Fallback to legacy settings endpoints', settingsErr)
+          const election = await fetchElectionWithFallback(electionId)
+          applyElectionData(election)
+          resolvedElectionId = election.id
+          setCurrentElectionId(election.id)
+          const phases = await fetchElectionPhases(token, election.id).catch(() => null)
+          if (phases) setTimelineFromPhases(phases)
+          const modeSettings = await fetchElectionMode(token, election.id).catch(() => null)
+          if (modeSettings) setMode(mapModeFromFlags(modeSettings.online_enabled, modeSettings.tps_enabled))
         }
-      }
 
-      await refreshBranding(resolvedElectionId)
-    } catch (err) {
-      console.error('Failed to load election settings', err)
-      setError((err as { message?: string })?.message ?? 'Gagal memuat pengaturan pemilu')
-    } finally {
-      setLoading(false)
-    }
-  }, [applyElectionData, currentElectionId, fetchElectionWithFallback, refreshBranding, setTimelineFromPhases, token])
+        const summaryData = await fetchElectionSummary(token, resolvedElectionId).catch(() => null)
+        if (summaryData) {
+          setSummary(summaryData)
+        } else {
+          setSummary((prev) => prev)
+        }
+
+        // Fallback counts if summary missing/zero
+        if (!summaryData || !summaryData.total_candidates || !summaryData.total_voters || !summaryData.active_tps) {
+          try {
+            const [candidates, dptSummary, tpsList] = await Promise.all([
+              fetchAdminCandidates(token, resolvedElectionId).catch(() => []),
+              fetchAdminDpt(token, new URLSearchParams({ limit: '1', page: '1' }), resolvedElectionId).catch(() => ({ total: 0 })),
+              fetchAdminTpsList(token, resolvedElectionId).catch(() => []),
+            ])
+            setSummary({
+              total_candidates: candidates.length || summary.total_candidates,
+              total_voters: (dptSummary as any).total ?? summary.total_voters,
+              online_voters: summary.online_voters,
+              tps_voters: summary.tps_voters,
+              active_tps: tpsList.filter((tps) => tps.status === 'active').length || summary.active_tps,
+            })
+          } catch {
+            // ignore fallback errors
+          }
+        }
+
+        await refreshBranding(resolvedElectionId)
+      } catch (err) {
+        console.error('Failed to load election settings', err)
+        setError((err as { message?: string })?.message ?? 'Gagal memuat pengaturan pemilu')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [applyElectionData, fetchElectionWithFallback, refreshBranding, resolveElectionId, setTimelineFromPhases, token],
+  )
 
   useEffect(() => {
     void refreshElection()
   }, [refreshElection])
+
+  useEffect(() => {
+    if (activeElectionId && activeElectionId !== currentElectionId) {
+      setCurrentElectionId(activeElectionId)
+      void refreshElection(activeElectionId)
+    }
+  }, [activeElectionId, currentElectionId, refreshElection])
 
   useEffect(() => {
     if (!token) {
@@ -436,9 +454,11 @@ export const useElectionSettings = () => {
   const saveBasicInfo = useCallback(async () => {
     await saveSection('info', async () => {
       if (!token) return
+      const electionId = resolveElectionId()
       const payload: AdminElectionUpdatePayload = {
         name: basicInfo.name,
         slug: basicInfo.slug,
+        code: basicInfo.slug,
         description: basicInfo.description,
         academic_year: basicInfo.academicYear,
       }
@@ -446,28 +466,30 @@ export const useElectionSettings = () => {
       if (!Number.isNaN(parsedYear)) {
         payload.year = parsedYear
       }
-      const updated = await updateAdminElection(token, payload, currentElectionId || ACTIVE_ELECTION_ID)
+      const updated = await updateAdminElection(token, payload, electionId)
       applyElectionData(updated)
     })
-  }, [applyElectionData, basicInfo.name, basicInfo.slug, basicInfo.year, currentElectionId, saveSection, token])
+  }, [applyElectionData, basicInfo.academicYear, basicInfo.description, basicInfo.name, basicInfo.slug, basicInfo.year, resolveElectionId, saveSection, token])
 
   const saveMode = useCallback(async () => {
     await saveSection('mode', async () => {
       if (!token) return
+      const electionId = resolveElectionId()
       const payload = mapModeToFlags(mode)
-      const updated = await updateElectionMode(token, payload, currentElectionId || ACTIVE_ELECTION_ID)
+      const updated = await updateElectionMode(token, payload, electionId)
       setMode(mapModeFromFlags(updated.online_enabled, updated.tps_enabled))
     })
-  }, [currentElectionId, mode, saveSection, token])
+  }, [mode, resolveElectionId, saveSection, token])
 
   const saveTimeline = useCallback(async () => {
     await saveSection('timeline', async () => {
       if (!token) return
+       const electionId = resolveElectionId()
       const phasesPayload = buildPhasesPayload()
-      const updatedPhases = await updateElectionPhases(token, phasesPayload, currentElectionId || ACTIVE_ELECTION_ID)
+      const updatedPhases = await updateElectionPhases(token, phasesPayload, electionId)
       setTimelineFromPhases(updatedPhases)
     })
-  }, [buildPhasesPayload, currentElectionId, saveSection, setTimelineFromPhases, token])
+  }, [buildPhasesPayload, resolveElectionId, saveSection, setTimelineFromPhases, token])
 
   const saveRules = useCallback(async () => {
     await saveSection('rules', async () => {
@@ -479,7 +501,7 @@ export const useElectionSettings = () => {
   const saveBranding = useCallback(async () => {
     await saveSection('branding', async () => {
       if (!token) return
-      const electionId = currentElectionId || ACTIVE_ELECTION_ID
+      const electionId = resolveElectionId()
       const operations: Promise<unknown>[] = []
 
       if (brandingRemoval.primary) {
@@ -503,31 +525,31 @@ export const useElectionSettings = () => {
     })
     setBrandingUploads({})
     setBrandingRemoval({ primary: false, secondary: false })
-  }, [brandingRemoval.primary, brandingRemoval.secondary, brandingUploads.primary, brandingUploads.secondary, currentElectionId, refreshBranding, saveSection, token])
+  }, [brandingRemoval.primary, brandingRemoval.secondary, brandingUploads.primary, brandingUploads.secondary, refreshBranding, resolveElectionId, saveSection, token])
 
   const openVoting = useCallback(async () => {
     await saveSection('voting-control', async () => {
       if (!token) return
-      const updated = await openAdminElectionVoting(token, currentElectionId || ACTIVE_ELECTION_ID)
+      const updated = await openAdminElectionVoting(token, resolveElectionId())
       applyElectionData(updated)
     })
-  }, [applyElectionData, currentElectionId, saveSection, token])
+  }, [applyElectionData, resolveElectionId, saveSection, token])
 
   const closeVoting = useCallback(async () => {
     await saveSection('voting-control', async () => {
       if (!token) return
-      const updated = await closeAdminElectionVoting(token, currentElectionId || ACTIVE_ELECTION_ID)
+      const updated = await closeAdminElectionVoting(token, resolveElectionId())
       applyElectionData(updated)
     })
-  }, [applyElectionData, currentElectionId, saveSection, token])
+  }, [applyElectionData, resolveElectionId, saveSection, token])
 
   const archiveElection = useCallback(async () => {
     await saveSection('archive', async () => {
       if (!token) return
-      const updated = await archiveAdminElection(token, currentElectionId || ACTIVE_ELECTION_ID)
+      const updated = await archiveAdminElection(token, resolveElectionId())
       applyElectionData(updated)
     })
-  }, [applyElectionData, currentElectionId, saveSection, token])
+  }, [applyElectionData, resolveElectionId, saveSection, token])
 
   const timelineValid = validateTimeline()
 

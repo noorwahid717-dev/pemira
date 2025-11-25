@@ -11,36 +11,39 @@ import { appRoutes, fallbackRoute } from './router/routes'
 import { AdminAuthProvider } from './hooks/useAdminAuth'
 import { ToastProvider } from './components/Toast'
 import { PopupProvider } from './components/Popup'
+import { ActiveElectionProvider } from './hooks/useActiveElection'
 import './App.css'
 
 const App = (): React.JSX.Element => (
   <PopupProvider>
     <ToastProvider>
       <AdminAuthProvider>
-        <TPSPanelProvider>
-          <CandidateAdminProvider>
-            <TPSAdminProvider>
-              <DPTAdminProvider>
-                <BrowserRouter>
-                  <Routes>
-                    {appRoutes.map(({ id, path, Component, requiresAuth, requiresAdminAuth, publicOnly }) => {
-                      let element: React.JSX.Element = <Component />
-                      if (requiresAdminAuth) {
-                        element = <AdminProtectedRoute component={Component} />
-                      } else if (requiresAuth) {
-                        element = <ProtectedRoute component={Component} />
-                      } else if (publicOnly) {
-                        element = <PublicOnlyRoute component={Component} />
-                      }
-                      return <Route key={id} path={path} element={element} />
-                    })}
-                    <Route path={fallbackRoute.path} element={<fallbackRoute.Component />} />
-                  </Routes>
-                </BrowserRouter>
-              </DPTAdminProvider>
-            </TPSAdminProvider>
-          </CandidateAdminProvider>
-        </TPSPanelProvider>
+        <ActiveElectionProvider>
+          <TPSPanelProvider>
+            <CandidateAdminProvider>
+              <TPSAdminProvider>
+                <DPTAdminProvider>
+                  <BrowserRouter>
+                    <Routes>
+                      {appRoutes.map(({ id, path, Component, requiresAuth, requiresAdminAuth, publicOnly }) => {
+                        let element: React.JSX.Element = <Component />
+                        if (requiresAdminAuth) {
+                          element = <AdminProtectedRoute component={Component} />
+                        } else if (requiresAuth) {
+                          element = <ProtectedRoute component={Component} />
+                        } else if (publicOnly) {
+                          element = <PublicOnlyRoute component={Component} />
+                        }
+                        return <Route key={id} path={path} element={element} />
+                      })}
+                      <Route path={fallbackRoute.path} element={<fallbackRoute.Component />} />
+                    </Routes>
+                  </BrowserRouter>
+                </DPTAdminProvider>
+              </TPSAdminProvider>
+            </CandidateAdminProvider>
+          </TPSPanelProvider>
+        </ActiveElectionProvider>
       </AdminAuthProvider>
     </ToastProvider>
   </PopupProvider>

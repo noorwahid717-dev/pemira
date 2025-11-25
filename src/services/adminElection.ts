@@ -1,5 +1,5 @@
-import { ACTIVE_ELECTION_ID } from '../config/env'
 import { apiRequest } from '../utils/apiClient'
+import { getActiveElectionId } from '../state/activeElection'
 
 export type AdminElectionResponse = {
   id: number
@@ -31,10 +31,12 @@ export type AdminElectionUpdatePayload = Partial<{
   year: number
   name: string
   slug: string
+  code: string
   description: string
   academic_year: string
   online_enabled: boolean
   tps_enabled: boolean
+  status: string
   registration_start_at: string | null
   registration_end_at: string | null
   verification_start_at: string | null
@@ -48,6 +50,13 @@ export type AdminElectionUpdatePayload = Partial<{
   voting_start_at: string | null
   voting_end_at: string | null
 }>
+
+export type AdminElectionCreatePayload = {
+  name: string
+  slug: string
+  year: number
+  description?: string
+}
 
 export type ElectionPhase = {
   phase: 'registration' | 'verification' | 'campaign' | 'quiet' | 'voting' | 'recap'
@@ -82,14 +91,16 @@ const unwrap = <T>(payload: { data?: T } | T): T => {
   return payload as T
 }
 
-export const fetchAdminElection = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<AdminElectionResponse> => {
+const resolveElectionId = (value?: number | null): number => value ?? getActiveElectionId()
+
+export const fetchAdminElection = async (token: string, electionId: number = getActiveElectionId()): Promise<AdminElectionResponse> => {
   const response = await apiRequest<AdminElectionResponse | { data: AdminElectionResponse }>(`/admin/elections/${electionId}`, {
     token,
   })
   return unwrap(response)
 }
 
-export const updateAdminElection = async (token: string, payload: AdminElectionUpdatePayload, electionId: number = ACTIVE_ELECTION_ID): Promise<AdminElectionResponse> => {
+export const updateAdminElection = async (token: string, payload: AdminElectionUpdatePayload, electionId: number = getActiveElectionId()): Promise<AdminElectionResponse> => {
   const response = await apiRequest<AdminElectionResponse | { data: AdminElectionResponse }>(`/admin/elections/${electionId}`, {
     method: 'PATCH',
     token,
@@ -98,14 +109,14 @@ export const updateAdminElection = async (token: string, payload: AdminElectionU
   return unwrap(response)
 }
 
-export const fetchElectionPhases = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<ElectionPhase[]> => {
+export const fetchElectionPhases = async (token: string, electionId: number = getActiveElectionId()): Promise<ElectionPhase[]> => {
   const response = await apiRequest<ElectionPhase[] | { data: ElectionPhase[] }>(`/admin/elections/${electionId}/phases`, {
     token,
   })
   return unwrap(response)
 }
 
-export const updateElectionPhases = async (token: string, phases: ElectionPhase[], electionId: number = ACTIVE_ELECTION_ID): Promise<ElectionPhase[]> => {
+export const updateElectionPhases = async (token: string, phases: ElectionPhase[], electionId: number = getActiveElectionId()): Promise<ElectionPhase[]> => {
   const response = await apiRequest<ElectionPhase[] | { data: ElectionPhase[] }>(`/admin/elections/${electionId}/phases`, {
     method: 'PUT',
     token,
@@ -114,14 +125,14 @@ export const updateElectionPhases = async (token: string, phases: ElectionPhase[
   return unwrap(response)
 }
 
-export const fetchElectionMode = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<ElectionModeSettings> => {
+export const fetchElectionMode = async (token: string, electionId: number = getActiveElectionId()): Promise<ElectionModeSettings> => {
   const response = await apiRequest<ElectionModeSettings | { data: ElectionModeSettings }>(`/admin/elections/${electionId}/settings/mode`, {
     token,
   })
   return unwrap(response)
 }
 
-export const updateElectionMode = async (token: string, payload: ElectionModeSettings, electionId: number = ACTIVE_ELECTION_ID): Promise<ElectionModeSettings> => {
+export const updateElectionMode = async (token: string, payload: ElectionModeSettings, electionId: number = getActiveElectionId()): Promise<ElectionModeSettings> => {
   const response = await apiRequest<ElectionModeSettings | { data: ElectionModeSettings }>(`/admin/elections/${electionId}/settings/mode`, {
     method: 'PUT',
     token,
@@ -130,7 +141,7 @@ export const updateElectionMode = async (token: string, payload: ElectionModeSet
   return unwrap(response)
 }
 
-export const openAdminElectionVoting = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<AdminElectionResponse> => {
+export const openAdminElectionVoting = async (token: string, electionId: number = getActiveElectionId()): Promise<AdminElectionResponse> => {
   const response = await apiRequest<AdminElectionResponse | { data: AdminElectionResponse }>(`/admin/elections/${electionId}/actions/open-voting`, {
     method: 'POST',
     token,
@@ -138,7 +149,7 @@ export const openAdminElectionVoting = async (token: string, electionId: number 
   return unwrap(response)
 }
 
-export const closeAdminElectionVoting = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<AdminElectionResponse> => {
+export const closeAdminElectionVoting = async (token: string, electionId: number = getActiveElectionId()): Promise<AdminElectionResponse> => {
   const response = await apiRequest<AdminElectionResponse | { data: AdminElectionResponse }>(`/admin/elections/${electionId}/actions/close-voting`, {
     method: 'POST',
     token,
@@ -146,7 +157,7 @@ export const closeAdminElectionVoting = async (token: string, electionId: number
   return unwrap(response)
 }
 
-export const archiveAdminElection = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<AdminElectionResponse> => {
+export const archiveAdminElection = async (token: string, electionId: number = getActiveElectionId()): Promise<AdminElectionResponse> => {
   const response = await apiRequest<AdminElectionResponse | { data: AdminElectionResponse }>(`/admin/elections/${electionId}/actions/archive`, {
     method: 'POST',
     token,
@@ -154,7 +165,7 @@ export const archiveAdminElection = async (token: string, electionId: number = A
   return unwrap(response)
 }
 
-export const fetchElectionSummary = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<ElectionSummary> => {
+export const fetchElectionSummary = async (token: string, electionId: number = getActiveElectionId()): Promise<ElectionSummary> => {
   const readPayload = (input: any): ElectionSummary => {
     const payload = unwrap(input as any)
     const raw = (payload as any)?.summary ?? (payload as any)?.data ?? payload
@@ -181,26 +192,48 @@ export const fetchElectionSummary = async (token: string, electionId: number = A
 
   try {
     const response = await apiRequest<ElectionSummary | { data: ElectionSummary } | { summary?: ElectionSummary }>(
-      `/api/v1/admin/elections/${electionId}/summary`,
+      `/admin/elections/${resolveElectionId(electionId)}/summary`,
       {
         token,
       },
     )
     return readPayload(response)
   } catch {
-    const legacy = await apiRequest<ElectionSummary | { data: ElectionSummary } | { summary?: ElectionSummary }>(`/admin/elections/${electionId}/summary`, {
+    const legacy = await apiRequest<ElectionSummary | { data: ElectionSummary } | { summary?: ElectionSummary }>(`/admin/elections/${resolveElectionId(electionId)}/summary`, {
       token,
     })
     return readPayload(legacy)
   }
 }
 
-export const fetchAdminElectionSettings = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<AdminElectionSettingsResponse> => {
+export const fetchAdminElectionSettings = async (token: string, electionId: number = getActiveElectionId()): Promise<AdminElectionSettingsResponse> => {
   const response = await apiRequest<AdminElectionSettingsResponse | { data: AdminElectionSettingsResponse }>(
-    `/api/v1/admin/elections/${electionId}/settings`,
+    `/admin/elections/${resolveElectionId(electionId)}/settings`,
     {
       token,
     },
   )
+  return unwrap(response)
+}
+
+export const fetchAdminElectionList = async (token: string): Promise<AdminElectionResponse[]> => {
+  const response = await apiRequest<any>('/admin/elections', { token })
+  const items = Array.isArray(response?.data?.items)
+    ? response.data.items
+    : Array.isArray(response?.items)
+      ? response.items
+      : Array.isArray(response)
+        ? response
+        : null
+  if (!items) return []
+  return (items as AdminElectionResponse[]).map(unwrap)
+}
+
+export const createAdminElection = async (token: string, payload: AdminElectionCreatePayload): Promise<AdminElectionResponse> => {
+  const response = await apiRequest<AdminElectionResponse | { data: AdminElectionResponse }>('/admin/elections', {
+    method: 'POST',
+    token,
+    body: payload,
+  })
   return unwrap(response)
 }

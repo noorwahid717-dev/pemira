@@ -1,4 +1,4 @@
-import { ACTIVE_ELECTION_ID } from '../config/env'
+import { getActiveElectionId } from '../state/activeElection'
 import type { AcademicStatus, DPTEntry, VoterStatus, VotingMethod } from '../types/dptAdmin'
 import { apiRequest } from '../utils/apiClient'
 
@@ -128,7 +128,7 @@ const mapDptItems = (raw: DptApiItem[]): DPTEntry[] =>
     }
   })
 
-export const fetchAdminDpt = async (token: string, params: URLSearchParams, electionId: number = ACTIVE_ELECTION_ID): Promise<{ items: DPTEntry[]; total: number }> => {
+export const fetchAdminDpt = async (token: string, params: URLSearchParams, electionId: number = getActiveElectionId()): Promise<{ items: DPTEntry[]; total: number }> => {
   try {
     const primary = await apiRequest<any>(`/admin/elections/${electionId}/voters?${params.toString()}`, { token })
     const items = mapDptItems(extractItems(primary))
@@ -143,7 +143,7 @@ export const fetchAdminDpt = async (token: string, params: URLSearchParams, elec
   }
 }
 
-export const fetchAdminDptVoterById = async (token: string, voterId: string, electionId: number = ACTIVE_ELECTION_ID): Promise<DPTEntry | null> => {
+export const fetchAdminDptVoterById = async (token: string, voterId: string, electionId: number = getActiveElectionId()): Promise<DPTEntry | null> => {
   try {
     const response = await apiRequest<DptApiItem>(`/admin/elections/${electionId}/voters/${voterId}`, { token })
     const items = mapDptItems([response])
@@ -193,7 +193,7 @@ export const updateAdminDptVoter = async (
   token: string,
   voterId: string,
   updates: UpdateVoterPayload,
-  electionId: number = ACTIVE_ELECTION_ID,
+  electionId: number = getActiveElectionId(),
 ): Promise<DPTEntry> => {
   const response = await apiRequest<DptApiItem>(`/admin/elections/${electionId}/voters/${voterId}`, {
     method: 'PUT',
@@ -204,7 +204,7 @@ export const updateAdminDptVoter = async (
   return items[0]
 }
 
-export const deleteAdminDptVoter = async (token: string, voterId: string, electionId: number = ACTIVE_ELECTION_ID): Promise<void> => {
+export const deleteAdminDptVoter = async (token: string, voterId: string, electionId: number = getActiveElectionId()): Promise<void> => {
   await apiRequest<void>(`/admin/elections/${electionId}/voters/${voterId}`, {
     method: 'DELETE',
     token,

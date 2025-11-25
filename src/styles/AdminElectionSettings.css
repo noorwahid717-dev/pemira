@@ -275,6 +275,46 @@
   color: var(--admin-color-brand-700, #4338ca);
 }
 
+.active-election-card .active-election-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0.75rem;
+}
+
+.selector-panel {
+  border: 1px solid var(--admin-color-neutral-200, #e5e7eb);
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.selector-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 700;
+  color: var(--admin-color-neutral-800, #1f2937);
+}
+
+.selector-panel select,
+.selector-panel input,
+.selector-panel textarea {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid var(--admin-color-neutral-200, #e5e7eb);
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.new-election-form textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
 .timeline-rail {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

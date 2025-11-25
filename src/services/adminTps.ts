@@ -1,4 +1,4 @@
-import { ACTIVE_ELECTION_ID } from '../config/env'
+import { getActiveElectionId } from '../state/activeElection'
 import type { TPSAdmin, TPSOperator, TPSStatus } from '../types/tpsAdmin'
 import { apiRequest } from '../utils/apiClient'
 
@@ -76,13 +76,12 @@ const mapOperator = (op: AdminTpsOperatorDTO): TPSOperator => ({
 })
 
 const unwrapItems = (response: any): AdminTpsDTO[] | null => {
-  if (Array.isArray(response)) return response as AdminTpsDTO[]
-  if (Array.isArray(response?.items)) return response.items as AdminTpsDTO[]
-  if (Array.isArray(response?.data?.items)) return response.data.items as AdminTpsDTO[]
-  return null
+  const candidates = [response, response?.items, response?.data, response?.data?.items, response?.data?.data, response?.data?.data?.items, response?.items?.items]
+  const found = candidates.find((entry) => Array.isArray(entry))
+  return (found as AdminTpsDTO[] | undefined) ?? null
 }
 
-const withElectionQuery = (path: string, electionId: number | null = ACTIVE_ELECTION_ID) => {
+const withElectionQuery = (path: string, electionId: number | null = getActiveElectionId()) => {
   if (!electionId) return path
   const connector = path.includes('?') ? '&' : '?'
   return `${path}${connector}election_id=${electionId}`
@@ -100,16 +99,17 @@ const buildBody = (payload: TPSAdmin) => ({
   notes: normalizeText(payload.catatan),
 })
 
-export const fetchAdminTpsList = async (token: string, electionId: number | null = ACTIVE_ELECTION_ID): Promise<TPSAdmin[]> => {
+export const fetchAdminTpsList = async (token: string, electionId: number | null = getActiveElectionId()): Promise<TPSAdmin[]> => {
   const response = await apiRequest<any>(withElectionQuery('/admin/tps', electionId), { token })
   const items = unwrapItems(response)
   if (!items) {
-    throw new Error('Invalid TPS list response')
+    console.warn('TPS list response tidak sesuai ekspektasi, fallback ke daftar kosong', response)
+    return []
   }
   return items.map(mapTps)
 }
 
-export const fetchAdminTpsDetail = async (token: string, id: string, electionId: number | null = ACTIVE_ELECTION_ID): Promise<TPSAdmin> => {
+export const fetchAdminTpsDetail = async (token: string, id: string, electionId: number | null = getActiveElectionId()): Promise<TPSAdmin> => {
   const response = await apiRequest<any>(withElectionQuery(`/admin/tps/${id}`, electionId), { token })
   const data = (response?.data ?? response) as AdminTpsDTO | undefined
   if (!data) {
@@ -118,19 +118,23 @@ export const fetchAdminTpsDetail = async (token: string, id: string, electionId:
   return mapTps(data)
 }
 
-export const createAdminTps = async (token: string, payload: TPSAdmin, electionId: number | null = ACTIVE_ELECTION_ID): Promise<TPSAdmin> => {
+export const createAdminTps = async (token: string, payload: TPSAdmin, electionId: number | null = getActiveElectionId()): Promise<TPSAdmin> => {
   const body = buildBody(payload)
-  const response = await apiRequest<AdminTpsDTO>('/admin/tps', { method: 'POST', token, body: { ...body, election_id: electionId ?? 1, is_active: payload.status === 'active' } })
+  const response = await apiRequest<AdminTpsDTO>('/admin/tps', {
+    method: 'POST',
+    token,
+    body: { ...body, election_id: electionId ?? getActiveElectionId(), is_active: payload.status === 'active' },
+  })
   return mapTps(response)
 }
 
-export const updateAdminTps = async (token: string, id: string, payload: TPSAdmin, electionId: number | null = ACTIVE_ELECTION_ID): Promise<TPSAdmin> => {
+export const updateAdminTps = async (token: string, id: string, payload: TPSAdmin, electionId: number | null = getActiveElectionId()): Promise<TPSAdmin> => {
   const body = { ...buildBody(payload), is_active: payload.status === 'active' }
   const response = await apiRequest<AdminTpsDTO>(withElectionQuery(`/admin/tps/${id}`, electionId), { method: 'PUT', token, body })
   return mapTps(response)
 }
 
-export const deleteAdminTps = async (token: string, id: string, electionId: number | null = ACTIVE_ELECTION_ID): Promise<void> => {
+export const deleteAdminTps = async (token: string, id: string, electionId: number | null = getActiveElectionId()): Promise<void> => {
   await apiRequest(withElectionQuery(`/admin/tps/${id}`, electionId), { method: 'DELETE', token })
 }
 

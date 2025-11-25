@@ -1,4 +1,5 @@
-import { ACTIVE_ELECTION_ID, API_BASE_URL } from '../config/env'
+import { API_BASE_URL } from '../config/env'
+import { getActiveElectionId } from '../state/activeElection'
 import type { CandidateAdmin, CandidateMedia, CandidateMediaSlot, CandidateProgramAdmin, CandidateStatus } from '../types/candidateAdmin'
 import { apiRequest } from '../utils/apiClient'
 
@@ -183,7 +184,7 @@ export const buildCandidatePayload = (candidate: CandidateAdmin, excludeStatus =
   return payload
 }
 
-export const fetchAdminCandidates = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<CandidateAdmin[]> => {
+export const fetchAdminCandidates = async (token: string, electionId: number = getActiveElectionId()): Promise<CandidateAdmin[]> => {
   const response = await apiRequest<any>(`/admin/elections/${electionId}/candidates`, {
     token,
   })
@@ -192,9 +193,9 @@ export const fetchAdminCandidates = async (token: string, electionId: number = A
   return (items as AdminCandidateResponse[]).map(transformCandidateFromApi)
 }
 
-export const createAdminCandidate = async (token: string, candidate: CandidateAdmin): Promise<CandidateAdmin> => {
+export const createAdminCandidate = async (token: string, candidate: CandidateAdmin, electionId: number = getActiveElectionId()): Promise<CandidateAdmin> => {
   const payload = buildCandidatePayload(candidate)
-  const response = await apiRequest<AdminCandidateResponse>(`/admin/elections/${ACTIVE_ELECTION_ID}/candidates`, {
+  const response = await apiRequest<AdminCandidateResponse>(`/admin/elections/${electionId}/candidates`, {
     method: 'POST',
     token,
     body: payload,
@@ -202,9 +203,15 @@ export const createAdminCandidate = async (token: string, candidate: CandidateAd
   return transformCandidateFromApi(response)
 }
 
-export const updateAdminCandidate = async (token: string, id: string, candidate: Partial<CandidateAdmin>, excludeStatus = true): Promise<CandidateAdmin> => {
+export const updateAdminCandidate = async (
+  token: string,
+  id: string,
+  candidate: Partial<CandidateAdmin>,
+  excludeStatus = true,
+  electionId: number = getActiveElectionId(),
+): Promise<CandidateAdmin> => {
   const payload = buildCandidatePayload(candidate as CandidateAdmin, excludeStatus)
-  const response = await apiRequest<AdminCandidateResponse>(`/admin/elections/${ACTIVE_ELECTION_ID}/candidates/${id}`, {
+  const response = await apiRequest<AdminCandidateResponse>(`/admin/elections/${electionId}/candidates/${id}`, {
     method: 'PUT',
     token,
     body: payload,
@@ -212,9 +219,9 @@ export const updateAdminCandidate = async (token: string, id: string, candidate:
   return transformCandidateFromApi(response)
 }
 
-export const fetchAdminCandidateDetail = async (token: string, id: string | number): Promise<CandidateAdmin> => {
+export const fetchAdminCandidateDetail = async (token: string, id: string | number, electionId: number = getActiveElectionId()): Promise<CandidateAdmin> => {
   const response = await apiRequest<AdminCandidateResponse>(
-    `/admin/elections/${ACTIVE_ELECTION_ID}/candidates/${id}`,
+    `/admin/elections/${electionId}/candidates/${id}`,
     { token },
   )
   return transformCandidateFromApi(response)

@@ -1,4 +1,4 @@
-import { ACTIVE_ELECTION_ID } from '../config/env'
+import { getActiveElectionId } from '../state/activeElection'
 import { apiRequest } from '../utils/apiClient'
 
 export type ElectionStatus =
@@ -88,7 +88,7 @@ export const fetchCurrentElection = async (options?: { signal?: AbortSignal }): 
       } catch (legacyErr: any) {
         if (legacyErr?.status === 404) {
           try {
-            const settings = await apiRequest<any>(`/admin/elections/${ACTIVE_ELECTION_ID}/settings`, { signal })
+            const settings = await apiRequest<any>(`/admin/elections/${getActiveElectionId()}/settings`, { signal })
             if ((settings as any)?.election) return (settings as any).election as PublicElection
           } catch {
             // ignore and continue to list fallback

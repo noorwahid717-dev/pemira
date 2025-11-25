@@ -21,6 +21,10 @@ import TPSCheckInSuccess from '../pages/TPSCheckInSuccess'
 import TPSVoterDetail from '../pages/TPSVoterDetail'
 import TPSPanelSettings from '../pages/TPSPanelSettings'
 import VoterQRScanner from '../pages/VoterQRScanner'
+import VoterHistory from '../pages/VoterHistory'
+import VoterCandidates from '../pages/VoterCandidates'
+import VoterHelp from '../pages/VoterHelp'
+import VoterProfile from '../pages/VoterProfile'
 import ElectionResults from '../pages/ElectionResults'
 import AdminDashboard from '../pages/AdminDashboard'
 import AdminLogin from '../pages/AdminLogin'
@@ -58,6 +62,10 @@ export const appRoutes: RouteDefinition[] = [
   { id: 'register', path: '/register', Component: Register, publicOnly: true },
   { id: 'admin-login', path: '/admin/login', Component: AdminLogin },
   { id: 'dashboard', path: '/dashboard', Component: DashboardPemilihHiFi, requiresAuth: true },
+  { id: 'voter-history', path: '/dashboard/riwayat', Component: VoterHistory, requiresAuth: true },
+  { id: 'voter-candidates', path: '/dashboard/kandidat', Component: VoterCandidates, requiresAuth: true },
+  { id: 'voter-help', path: '/dashboard/bantuan', Component: VoterHelp, requiresAuth: true },
+  { id: 'voter-profile', path: '/dashboard/profil', Component: VoterProfile, requiresAuth: true },
   { id: 'candidates', path: '/kandidat', Component: DaftarKandidat },
   { id: 'candidate-detail', path: '/kandidat/detail/:id', Component: DetailKandidat },
   { id: 'online-voting', path: '/voting', Component: VotingOnline, requiresAuth: true },

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { fetchAdminDpt } from '../services/adminDpt'
-import { fetchCurrentElection } from '../services/publicElection'
 import { useAdminAuth } from './useAdminAuth'
+import { useActiveElection } from './useActiveElection'
 import type { AcademicStatus, DPTEntry, ImportMapping, ImportPreviewError, ImportStep, VoterStatus } from '../types/dptAdmin'
 
 const defaultMapping: ImportMapping = {
@@ -48,8 +48,8 @@ const DPTAdminContext = createContext<{
 
 export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useAdminAuth()
+  const { activeElectionId } = useActiveElection()
   const [voters, setVoters] = useState<DPTEntry[]>([])
-  const [electionId, setElectionId] = useState<number | null>(null)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const limit = 20
@@ -70,21 +70,10 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | undefined>(undefined)
 
   const refresh = useCallback(async () => {
-    if (!token) return
+    if (!token || !activeElectionId) return
     setLoading(true)
     setError(undefined)
     try {
-      let targetElectionId = electionId
-      if (!targetElectionId) {
-        try {
-          const current = await fetchCurrentElection()
-          targetElectionId = current.id
-          setElectionId(current.id)
-        } catch (err) {
-          console.error('Failed to resolve current election', err)
-        }
-      }
-
       const params = new URLSearchParams()
       if (filters.fakultas !== 'all') params.append('faculty', filters.fakultas)
       if (filters.angkatan !== 'all') params.append('cohort_year', filters.angkatan)
@@ -97,7 +86,7 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
       params.append('page', page.toString())
       params.append('limit', limit.toString())
 
-      const { items, total: totalItems } = await fetchAdminDpt(token, params, targetElectionId ?? undefined)
+      const { items, total: totalItems } = await fetchAdminDpt(token, params, activeElectionId)
       setVoters(items)
       setTotal(totalItems)
     } catch (err) {
@@ -106,20 +95,19 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false)
     }
-  }, [electionId, filters, limit, page, token])
+  }, [activeElectionId, filters, limit, page, token])
 
   useEffect(() => {
     if (!token) {
       setVoters([])
-      setElectionId(null)
       return
     }
     void refresh()
-  }, [token, refresh, electionId])
+  }, [activeElectionId, refresh, token])
 
   useEffect(() => {
     setPage(1)
-  }, [filters.fakultas, filters.angkatan, filters.search, filters.statusSuara, filters.akademik, filters.tipe])
+  }, [filters.fakultas, filters.angkatan, filters.search, filters.statusSuara, filters.akademik, filters.tipe, activeElectionId])
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {

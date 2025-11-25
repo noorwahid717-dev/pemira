@@ -6,9 +6,10 @@ import { useAdminAuth } from './useAdminAuth'
 import { fetchMonitoringLive, type MonitoringLiveResponse } from '../services/adminMonitoring'
 import { fetchAdminCandidates } from '../services/adminCandidates'
 import { fetchAdminElection, type AdminElectionResponse } from '../services/adminElection'
-import { fetchCurrentElection } from '../services/publicElection'
-import { ACTIVE_ELECTION_ID } from '../config/env'
 import type { ApiError } from '../utils/apiClient'
+import { useActiveElection } from './useActiveElection'
+
+const defaultTpsStatus: TPSStatusSummary = { total: 0, active: 0, issue: 0, closed: 0, detail: [] }
 
 const stageLabels: Record<AdminOverview['stage'], string> = {
   pendaftaran: 'Pendaftaran',
@@ -69,7 +70,7 @@ const mapTpsStatus = (snapshot?: MonitoringLiveResponse): TPSStatusSummary => {
     active,
     issue,
     closed: Math.max(0, detail.length - active - issue),
-    detail: detail.length ? detail : tpsStatusSummary.detail,
+    detail: detail.length ? detail : defaultTpsStatus.detail,
   }
 }
 
@@ -117,7 +118,7 @@ const buildOverview = (election: AdminElectionResponse | null, totalCandidates: 
 
 export const useAdminDashboardData = () => {
   const { token } = useAdminAuth()
-  const [electionId, setElectionId] = useState<number>(ACTIVE_ELECTION_ID)
+  const { activeElectionId, refresh: refreshActiveElection } = useActiveElection()
   const candidateCacheRef = useRef<Map<number, CandidateAdmin[]>>(new Map())
   const [overview, setOverview] = useState<AdminOverview>({
     stage: 'pendaftaran',
@@ -128,7 +129,7 @@ export const useAdminDashboardData = () => {
     activeMode: '-',
   })
   const [participation, setParticipation] = useState<ParticipationStats>({ totalVoters: 0, voted: 0, notVoted: 0 })
-  const [tpsStatus, setTpsStatus] = useState<TPSStatusSummary>({ total: 0, active: 0, issue: 0, closed: 0, detail: [] })
+  const [tpsStatus, setTpsStatus] = useState<TPSStatusSummary>(defaultTpsStatus)
   const [logs, setLogs] = useState<ActivityLogEntry[]>([])
   const [votes, setVotes] = useState<CandidateVoteStat[]>([])
   const [liveSystemInfo, setLiveSystemInfo] = useState<SystemInfo>({ serverStatus: 'normal', lastSync: '—', dataLocked: false })
@@ -138,28 +139,27 @@ export const useAdminDashboardData = () => {
   const [error, setError] = useState<string | undefined>(undefined)
 
   useEffect(() => {
-    if (!token) return
+    if (!token || !activeElectionId) return
     let mounted = true
 
     const loadDashboard = async () => {
       setLoading(true)
       setError(undefined)
       try {
-        let targetElectionId = electionId || ACTIVE_ELECTION_ID
-        let election: AdminElectionResponse | null = null
-
-        try {
-          election = await fetchAdminElection(token, targetElectionId)
-        } catch (err: any) {
-          if (err?.status === 404) {
-            const current = await fetchCurrentElection()
-            targetElectionId = current.id
-            if (mounted) setElectionId(current.id)
-            election = await fetchAdminElection(token, current.id)
-          } else {
+        let targetElectionId = activeElectionId
+        const loadElection = async (): Promise<AdminElectionResponse> => {
+          try {
+            return await fetchAdminElection(token, targetElectionId)
+          } catch (err: any) {
+            if (err?.status === 404) {
+              await refreshActiveElection().catch(() => undefined)
+              throw err
+            }
             throw err
           }
         }
+
+        const election = await loadElection()
 
         const resolveCandidates = async (id: number) => {
           const cached = candidateCacheRef.current.get(id)
@@ -217,7 +217,7 @@ export const useAdminDashboardData = () => {
       mounted = false
       window.clearInterval(interval)
     }
-  }, [electionId, token])
+  }, [activeElectionId, refreshActiveElection, token])
 
   const participationPercentage = useMemo(() => {
     const { voted, totalVoters } = participation

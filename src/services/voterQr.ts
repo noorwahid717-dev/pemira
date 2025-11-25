@@ -1,4 +1,4 @@
-import { ACTIVE_ELECTION_ID } from '../config/env'
+import { getActiveElectionId } from '../state/activeElection'
 import { apiRequest } from '../utils/apiClient'
 
 export type VoterQRResult = {
@@ -12,14 +12,16 @@ export type VoterQRResult = {
 }
 
 export const getVoterQr = (token: string, voterId: number) => {
-  const params = new URLSearchParams({ election_id: String(ACTIVE_ELECTION_ID) })
+  const electionId = getActiveElectionId()
+  const params = new URLSearchParams({ election_id: String(electionId) })
   return apiRequest<VoterQRResult>(`/voters/${voterId}/tps/qr?${params.toString()}`, { token })
 }
 
 export const rotateVoterQr = (token: string, voterId: number) => {
+  const electionId = getActiveElectionId()
   return apiRequest<VoterQRResult>(`/voters/${voterId}/tps/qr`, {
     method: 'POST',
     token,
-    body: { election_id: ACTIVE_ELECTION_ID },
+    body: { election_id: electionId },
   })
 }

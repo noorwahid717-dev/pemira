@@ -1,4 +1,5 @@
-import { ACTIVE_ELECTION_ID, API_BASE_URL } from '../config/env'
+import { API_BASE_URL } from '../config/env'
+import { getActiveElectionId } from '../state/activeElection'
 import type { ApiError } from '../utils/apiClient'
 import { apiRequest } from '../utils/apiClient'
 
@@ -16,11 +17,11 @@ const buildAuthHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
 })
 
-export const fetchBranding = async (token: string, electionId: number = ACTIVE_ELECTION_ID): Promise<BrandingMetadata> => {
+export const fetchBranding = async (token: string, electionId: number = getActiveElectionId()): Promise<BrandingMetadata> => {
   return apiRequest<BrandingMetadata>(`/admin/elections/${electionId}/branding`, { token })
 }
 
-export const fetchBrandingLogo = async (token: string, slot: 'primary' | 'secondary', electionId: number = ACTIVE_ELECTION_ID): Promise<string | null> => {
+export const fetchBrandingLogo = async (token: string, slot: 'primary' | 'secondary', electionId: number = getActiveElectionId()): Promise<string | null> => {
   const url = `${API_BASE_URL}/admin/elections/${electionId}/branding/logo/${slot}`
   const response = await fetch(url, { headers: buildAuthHeaders(token) })
   if (response.status === 404) return null
@@ -36,7 +37,7 @@ export const uploadBrandingLogo = async (
   token: string,
   slot: 'primary' | 'secondary',
   file: File,
-  electionId: number = ACTIVE_ELECTION_ID,
+  electionId: number = getActiveElectionId(),
 ): Promise<{ id: string; content_type: string; size: number }> => {
   const url = `${API_BASE_URL}/admin/elections/${electionId}/branding/logo/${slot}`
   const formData = new FormData()
@@ -61,7 +62,7 @@ export const uploadBrandingLogo = async (
   return response.json() as Promise<{ id: string; content_type: string; size: number }>
 }
 
-export const deleteBrandingLogo = async (token: string, slot: 'primary' | 'secondary', electionId: number = ACTIVE_ELECTION_ID): Promise<BrandingMetadata> => {
+export const deleteBrandingLogo = async (token: string, slot: 'primary' | 'secondary', electionId: number = getActiveElectionId()): Promise<BrandingMetadata> => {
   const url = `${API_BASE_URL}/admin/elections/${electionId}/branding/logo/${slot}`
   const response = await fetch(url, {
     method: 'DELETE',
