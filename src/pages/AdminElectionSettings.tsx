@@ -263,6 +263,9 @@ const AdminElectionSettings = (): JSX.Element => {
         slug: newElection.slug.trim(),
         year: parsedYear,
         description: newElection.description.trim() || undefined,
+        code: newElection.slug.trim(),
+        online_enabled: true,
+        tps_enabled: true,
       })
       showToast('Pemilu baru berhasil dibuat.', 'success')
       setSelectedElectionId(created.id)

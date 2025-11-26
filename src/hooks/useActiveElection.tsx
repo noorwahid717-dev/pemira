@@ -142,7 +142,12 @@ export const ActiveElectionProvider = ({ children }: { children: ReactNode }) =>
       setUpdating(true)
       setError(undefined)
       try {
-        const created = await createAdminElection(token, payload)
+        const created = await createAdminElection(token, {
+          ...payload,
+          code: payload.code ?? payload.slug,
+          online_enabled: payload.online_enabled ?? true,
+          tps_enabled: payload.tps_enabled ?? true,
+        })
         setElections((prev) => {
           const filtered = prev.filter((item) => item.id !== created.id)
           return [created, ...filtered]

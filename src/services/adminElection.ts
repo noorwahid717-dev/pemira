@@ -56,6 +56,9 @@ export type AdminElectionCreatePayload = {
   slug: string
   year: number
   description?: string
+  code?: string
+  online_enabled?: boolean
+  tps_enabled?: boolean
 }
 
 export type ElectionPhase = {
@@ -230,10 +233,17 @@ export const fetchAdminElectionList = async (token: string): Promise<AdminElecti
 }
 
 export const createAdminElection = async (token: string, payload: AdminElectionCreatePayload): Promise<AdminElectionResponse> => {
+  const resolvedPayload: AdminElectionCreatePayload = {
+    ...payload,
+    code: payload.code ?? payload.slug,
+    online_enabled: payload.online_enabled ?? true,
+    tps_enabled: payload.tps_enabled ?? true,
+  }
+
   const response = await apiRequest<AdminElectionResponse | { data: AdminElectionResponse }>('/admin/elections', {
     method: 'POST',
     token,
-    body: payload,
+    body: resolvedPayload,
   })
   return unwrap(response)
 }
