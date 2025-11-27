@@ -8,8 +8,13 @@ import {
   deleteAdminTps,
   rotateAdminTpsQr,
   updateAdminTps,
+  fetchAdminTpsOperators,
+  createAdminTpsOperator,
+  deleteAdminTpsOperator,
+  fetchAdminTpsAllocation,
+  fetchAdminTpsActivity,
 } from '../services/adminTps'
-import type { TPSAdmin } from '../types/tpsAdmin'
+import type { TPSActivitySummary, TPSAdmin, TPSAllocationSummary, TPSOperator } from '../types/tpsAdmin'
 import { useAdminAuth } from './useAdminAuth'
 import { useActiveElection } from './useActiveElection'
 
@@ -36,6 +41,11 @@ const TPSAdminContext = createContext<{
   isKodeAvailable: (kode: string, excludeId?: string) => boolean
   refresh: () => Promise<void>
   loadDetail: (id: string) => Promise<TPSAdmin | undefined>
+  fetchOperators: (id: string) => Promise<TPSOperator[]>
+  addOperator: (id: string, payload: { username: string; password: string; name?: string; email?: string }) => Promise<TPSOperator>
+  removeOperator: (id: string, userId: number) => Promise<void>
+  fetchAllocation: (id: string) => Promise<TPSAllocationSummary>
+  fetchActivity: (id: string) => Promise<TPSActivitySummary>
   rotateQr: (id: string) => Promise<TPSAdmin | undefined>
   deleteTPS: (id: string) => Promise<void>
   loading: boolean
@@ -176,6 +186,53 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
     [tpsList],
   )
 
+  const fetchOperators = useCallback(
+    async (id: string): Promise<TPSOperator[]> => {
+      if (!token) return []
+      return fetchAdminTpsOperators(token, id, activeElectionId)
+    },
+    [activeElectionId, token],
+  )
+
+  const addOperator = useCallback(
+    async (id: string, payload: { username: string; password: string; name?: string; email?: string }): Promise<TPSOperator> => {
+      if (!token) throw new Error('Admin token diperlukan untuk tambah operator TPS')
+      const created = await createAdminTpsOperator(token, id, payload, activeElectionId)
+      setTPSList((prev) =>
+        prev.map((tps) => (tps.id === id ? { ...tps, operators: [...(tps.operators ?? []), created] } : tps)),
+      )
+      return created
+    },
+    [activeElectionId, token],
+  )
+
+  const removeOperator = useCallback(
+    async (id: string, userId: number): Promise<void> => {
+      if (!token) throw new Error('Admin token diperlukan untuk hapus operator TPS')
+      await deleteAdminTpsOperator(token, id, userId, activeElectionId)
+      setTPSList((prev) =>
+        prev.map((tps) => (tps.id === id ? { ...tps, operators: (tps.operators ?? []).filter((op) => op.userId !== userId) } : tps)),
+      )
+    },
+    [activeElectionId, token],
+  )
+
+  const fetchAllocation = useCallback(
+    async (id: string): Promise<TPSAllocationSummary> => {
+      if (!token) return { totalTpsVoters: 0, allocatedToThisTps: 0, voted: 0, notVoted: 0 }
+      return fetchAdminTpsAllocation(token, id, activeElectionId)
+    },
+    [activeElectionId, token],
+  )
+
+  const fetchActivity = useCallback(
+    async (id: string): Promise<TPSActivitySummary> => {
+      if (!token) return { checkinsToday: 0, voted: 0, notVoted: 0, timeline: [] }
+      return fetchAdminTpsActivity(token, id, activeElectionId)
+    },
+    [activeElectionId, token],
+  )
+
   const value = useMemo(
     () => ({
       tpsList,
@@ -185,12 +242,34 @@ export const TPSAdminProvider = ({ children }: { children: ReactNode }) => {
       isKodeAvailable,
       refresh,
       loadDetail,
+      fetchOperators,
+      addOperator,
+      removeOperator,
+      fetchAllocation,
+      fetchActivity,
       rotateQr,
       deleteTPS,
       loading,
       error,
     }),
-    [createEmpty, deleteTPS, error, getById, isKodeAvailable, loadDetail, loading, refresh, rotateQr, saveTPS, tpsList],
+    [
+      addOperator,
+      createEmpty,
+      deleteTPS,
+      error,
+      fetchActivity,
+      fetchAllocation,
+      fetchOperators,
+      getById,
+      isKodeAvailable,
+      loadDetail,
+      loading,
+      refresh,
+      removeOperator,
+      rotateQr,
+      saveTPS,
+      tpsList,
+    ],
   )
 
   return <TPSAdminContext.Provider value={value}>{children}</TPSAdminContext.Provider>

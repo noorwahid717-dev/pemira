@@ -3,19 +3,27 @@ import { useNavigate } from 'react-router-dom'
 import PemiraLogos from '../components/shared/PemiraLogos'
 import {
   registerStudent,
-  registerLecturer,
-  registerStaff,
+  registerLecturerOrStaffV2,
   loginUser,
   type StudentRegistrationResponse,
   type LecturerRegistrationResponse,
   type StaffRegistrationResponse,
 } from '../services/auth'
+import { 
+  fetchFacultiesPrograms,
+  fetchLecturerUnits,
+  fetchLecturerPositions,
+  fetchStaffUnits,
+  fetchStaffPositions,
+  type FacultyProgram 
+} from '../services/meta'
 import { useVotingSession } from '../hooks/useVotingSession'
 import type { ApiError } from '../utils/apiClient'
 import '../styles/LoginMahasiswa.css'
 
 type VoterType = 'student' | 'lecturer' | 'staff'
 type Step = 'form' | 'success'
+type VotingMode = 'ONLINE' | 'TPS'
 
 type RegistrationData = 
   | StudentRegistrationResponse 
@@ -38,11 +46,22 @@ const RegisterNew = (): JSX.Element => {
     password: '',
     confirmPassword: '',
     email: '',
-    phone: '',
+    faculty: '',
+    program: '',
+    semester: '',
+    position: '',
   })
 
+  const [votingMode, setVotingMode] = useState<VotingMode>('ONLINE')
   const [registrationData, setRegistrationData] = useState<RegistrationData | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+
+  // Master data
+  const [metaOptions, setMetaOptions] = useState<FacultyProgram[]>([])
+  const [lecturerUnits, setLecturerUnits] = useState<string[]>([])
+  const [lecturerPositions, setLecturerPositions] = useState<string[]>([])
+  const [staffUnits, setStaffUnits] = useState<string[]>([])
+  const [staffPositions, setStaffPositions] = useState<string[]>([])
 
   const heroRef = useRef<HTMLDivElement | null>(null)
   const formCardRef = useRef<HTMLDivElement | null>(null)
@@ -62,6 +81,29 @@ const RegisterNew = (): JSX.Element => {
     }
   }, [])
 
+  // Load master data on mount
+  useEffect(() => {
+    fetchFacultiesPrograms()
+      .then((res) => setMetaOptions(res.faculties ?? []))
+      .catch(() => setMetaOptions([]))
+    
+    fetchLecturerUnits()
+      .then((res) => setLecturerUnits(res.data.map(u => u.name)))
+      .catch(() => setLecturerUnits([]))
+    
+    fetchLecturerPositions()
+      .then((res) => setLecturerPositions(res.data.map(p => p.name)))
+      .catch(() => setLecturerPositions([]))
+    
+    fetchStaffUnits()
+      .then((res) => setStaffUnits(res.data.map(u => u.name)))
+      .catch(() => setStaffUnits([]))
+    
+    fetchStaffPositions()
+      .then((res) => setStaffPositions(res.data.map(p => p.name)))
+      .catch(() => setStaffPositions([]))
+  }, [])
+
   // Reset form when voter type changes
   useEffect(() => {
     setFormData({
@@ -70,7 +112,10 @@ const RegisterNew = (): JSX.Element => {
       password: '',
       confirmPassword: '',
       email: '',
-      phone: '',
+      faculty: '',
+      program: '',
+      semester: '',
+      position: '',
     })
     setError(null)
   }, [voterType])
@@ -96,8 +141,12 @@ const RegisterNew = (): JSX.Element => {
     !loading && 
     formData.identifier.trim() !== '' &&
     formData.name.trim() !== '' &&
-    formData.password.length >= 8 &&
-    formData.password === formData.confirmPassword
+    formData.password.length >= 6 &&
+    formData.password === formData.confirmPassword &&
+    (voterType === 'student' ? 
+      (formData.faculty && formData.program && formData.semester) : 
+      (formData.position)
+    )
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -109,27 +158,30 @@ const RegisterNew = (): JSX.Element => {
     try {
       let result: RegistrationData
 
-      const basePayload = {
-        name: formData.name.trim(),
-        password: formData.password,
-        email: formData.email.trim() || undefined,
-        phone: formData.phone.trim() || undefined,
-      }
-
       if (voterType === 'student') {
         result = await registerStudent({
           nim: formData.identifier.trim(),
-          ...basePayload
-        })
-      } else if (voterType === 'lecturer') {
-        result = await registerLecturer({
-          nidn: formData.identifier.trim(),
-          ...basePayload
+          name: formData.name.trim(),
+          email: formData.email.trim() || '',
+          faculty_name: formData.faculty.trim(),
+          study_program_name: formData.program.trim(),
+          semester: formData.semester.trim(),
+          password: formData.password,
+          voting_mode: votingMode,
         })
       } else {
-        result = await registerStaff({
-          nip: formData.identifier.trim(),
-          ...basePayload
+        result = await registerLecturerOrStaffV2({
+          type: voterType === 'lecturer' ? 'LECTURER' : 'STAFF',
+          nidn: voterType === 'lecturer' ? formData.identifier.trim() : undefined,
+          nip: voterType === 'staff' ? formData.identifier.trim() : undefined,
+          name: formData.name.trim(),
+          email: formData.email.trim() || '',
+          faculty_name: voterType === 'lecturer' ? formData.faculty.trim() : undefined,
+          department_name: voterType === 'lecturer' ? formData.program.trim() : undefined,
+          unit_name: voterType === 'staff' ? formData.program.trim() : undefined,
+          position: formData.position.trim(),
+          password: formData.password,
+          voting_mode: votingMode,
         })
       }
 
@@ -176,20 +228,13 @@ const RegisterNew = (): JSX.Element => {
       
       {registrationData && (
         <div className="success-box">
-          <p className="credential"><strong>Nama:</strong> {registrationData.name}</p>
+          <p className="credential"><strong>Nama:</strong> {registrationData.user.profile.name}</p>
           <p className="credential">
-            <strong>{getIdentifierLabel()}:</strong> {
-              'nim' in registrationData ? registrationData.nim :
-              'nidn' in registrationData ? registrationData.nidn :
-              'nip' in registrationData ? registrationData.nip : ''
-            }
+            <strong>{getIdentifierLabel()}:</strong> {registrationData.user.username}
           </p>
-          {registrationData.email && (
-            <p className="credential"><strong>Email:</strong> {registrationData.email}</p>
-          )}
-          {registrationData.phone && (
-            <p className="credential"><strong>Telepon:</strong> {registrationData.phone}</p>
-          )}
+          <p className="credential">
+            <strong>Mode Pemilihan:</strong> {registrationData.voting_mode === 'ONLINE' ? 'Online' : 'TPS (Offline)'}
+          </p>
         </div>
       )}
 
@@ -245,8 +290,9 @@ const RegisterNew = (): JSX.Element => {
               <ul>
                 <li>Isi data sesuai dengan identitas kampus Anda</li>
                 <li>Pastikan {getIdentifierLabel()} yang dimasukkan benar</li>
-                <li>Email dan telepon bersifat opsional</li>
-                <li>Password minimal 8 karakter</li>
+                <li>Email bersifat opsional, akan dibuat otomatis jika kosong</li>
+                <li>Password minimal 6 karakter</li>
+                <li>Pilih mode pemilihan: Online atau TPS (Offline)</li>
                 <li>Simpan password Anda dengan aman</li>
               </ul>
             </div>
@@ -325,8 +371,8 @@ const RegisterNew = (): JSX.Element => {
                       type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="Minimal 8 karakter"
-                      minLength={8}
+                      placeholder="Minimal 6 karakter"
+                      minLength={6}
                       required
                     />
                     <button
@@ -365,10 +411,153 @@ const RegisterNew = (): JSX.Element => {
                 </label>
               </div>
 
+              {/* Step 3: Academic/Work Info */}
               <div className="section-block">
                 <div className="section-header">
-                  <p className="eyebrow">3. Kontak (Opsional)</p>
-                  <h3>Informasi Kontak</h3>
+                  <p className="eyebrow">3. {voterType === 'student' ? 'Data Akademik' : 'Data Pekerjaan'}</p>
+                  <h3>{voterType === 'student' ? 'Informasi Akademik' : 'Informasi Pekerjaan'}</h3>
+                </div>
+
+                {voterType === 'student' ? (
+                  <>
+                    <label className="form-field">
+                      <span className="field-label">Fakultas</span>
+                      <select
+                        value={formData.faculty}
+                        onChange={(e) => setFormData(prev => ({ ...prev, faculty: e.target.value, program: '' }))}
+                        required
+                      >
+                        <option value="">Pilih Fakultas</option>
+                        {metaOptions.map((item) => (
+                          <option key={item.faculty} value={item.faculty}>
+                            {item.faculty}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="form-field">
+                      <span className="field-label">Program Studi</span>
+                      <select
+                        value={formData.program}
+                        onChange={(e) => setFormData(prev => ({ ...prev, program: e.target.value }))}
+                        disabled={!formData.faculty}
+                        required
+                      >
+                        <option value="">{formData.faculty ? 'Pilih Program Studi' : 'Pilih fakultas dahulu'}</option>
+                        {formData.faculty && metaOptions
+                          .find(item => item.faculty === formData.faculty)
+                          ?.programs.map((prog) => (
+                            <option key={prog} value={prog}>
+                              {prog}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+
+                    <label className="form-field">
+                      <span className="field-label">Semester</span>
+                      <select
+                        value={formData.semester}
+                        onChange={(e) => setFormData(prev => ({ ...prev, semester: e.target.value }))}
+                        required
+                      >
+                        <option value="">Pilih Semester</option>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(sem => (
+                          <option key={sem} value={sem.toString()}>
+                            Semester {sem}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                ) : voterType === 'lecturer' ? (
+                  <>
+                    <label className="form-field">
+                      <span className="field-label">Fakultas</span>
+                      <select
+                        value={formData.faculty}
+                        onChange={(e) => setFormData(prev => ({ ...prev, faculty: e.target.value }))}
+                        required
+                      >
+                        <option value="">Pilih Fakultas</option>
+                        {lecturerUnits.map((unit) => (
+                          <option key={unit} value={unit}>
+                            {unit}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="form-field">
+                      <span className="field-label">Departemen</span>
+                      <input
+                        type="text"
+                        value={formData.program}
+                        onChange={(e) => setFormData(prev => ({ ...prev, program: e.target.value }))}
+                        placeholder="Contoh: Teknik Informatika"
+                        required
+                      />
+                    </label>
+
+                    <label className="form-field">
+                      <span className="field-label">Jabatan</span>
+                      <select
+                        value={formData.position}
+                        onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
+                        required
+                      >
+                        <option value="">Pilih Jabatan</option>
+                        {lecturerPositions.map((pos) => (
+                          <option key={pos} value={pos}>
+                            {pos}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <label className="form-field">
+                      <span className="field-label">Unit</span>
+                      <select
+                        value={formData.program}
+                        onChange={(e) => setFormData(prev => ({ ...prev, program: e.target.value }))}
+                        required
+                      >
+                        <option value="">Pilih Unit</option>
+                        {staffUnits.map((unit) => (
+                          <option key={unit} value={unit}>
+                            {unit}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="form-field">
+                      <span className="field-label">Jabatan</span>
+                      <select
+                        value={formData.position}
+                        onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
+                        required
+                      >
+                        <option value="">Pilih Jabatan</option>
+                        {staffPositions.map((pos) => (
+                          <option key={pos} value={pos}>
+                            {pos}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                )}
+              </div>
+
+              {/* Step 4: Email (Optional) and Voting Mode */}
+              <div className="section-block">
+                <div className="section-header">
+                  <p className="eyebrow">4. Mode Pemilihan & Kontak</p>
+                  <h3>Pilihan Lainnya</h3>
                 </div>
 
                 <label className="form-field">
@@ -377,21 +566,40 @@ const RegisterNew = (): JSX.Element => {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="email@example.com"
+                    placeholder="Kosongkan jika ingin auto-generate"
                   />
+                  <span className="field-hint">Akan dibuat otomatis jika kosong: {formData.identifier}@pemira.ac.id</span>
                 </label>
 
-                <label className="form-field">
-                  <span className="field-label">Telepon (opsional)</span>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="08123456789"
-                    pattern="^(08\d{8,11}|\+628\d{8,12})$"
-                  />
-                  <span className="field-hint">Format: 08xxx atau +62xxx</span>
-                </label>
+                <fieldset className="mode-fieldset compact" style={{ marginTop: '16px' }}>
+                  <legend className="field-label">Mode Pemilihan</legend>
+                  <label className="radio-row">
+                    <input 
+                      type="radio" 
+                      name="mode" 
+                      value="ONLINE" 
+                      checked={votingMode === 'ONLINE'} 
+                      onChange={() => setVotingMode('ONLINE')} 
+                    />
+                    <div>
+                      <div className="radio-title">Pemilihan Online</div>
+                      <div className="radio-desc">Akses login ke platform online. Hanya bisa memilih secara daring.</div>
+                    </div>
+                  </label>
+                  <label className="radio-row">
+                    <input 
+                      type="radio" 
+                      name="mode" 
+                      value="TPS" 
+                      checked={votingMode === 'TPS'} 
+                      onChange={() => setVotingMode('TPS')} 
+                    />
+                    <div>
+                      <div className="radio-title">Pemilihan Offline (TPS)</div>
+                      <div className="radio-desc">Dapat QR pendaftaran dan wajib hadir ke TPS.</div>
+                    </div>
+                  </label>
+                </fieldset>
               </div>
 
               <div className="section-block">

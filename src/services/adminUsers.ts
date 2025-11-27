@@ -20,12 +20,12 @@ export type AdminUser = {
   email: string
   full_name: string
   role: UserRole
-  voter_id: number | null
-  tps_id: number | null
-  lecturer_id: string | null
-  staff_id: string | null
+  voter_id?: number | null
+  tps_id?: number | null
+  lecturer_id?: string | null
+  staff_id?: string | null
   is_active: boolean
-  last_login_at: string | null
+  last_login_at?: string | null
   login_count: number
   created_at: string
   updated_at: string
@@ -77,7 +77,8 @@ export const listAdminUsers = async (
   token: string,
   params: URLSearchParams
 ): Promise<AdminUsersListResponse> => {
-  return apiRequest<AdminUsersListResponse>(`/admin/users?${params.toString()}`, { token })
+  const response = await apiRequest<{ data: AdminUsersListResponse }>(`/admin/users?${params.toString()}`, { token })
+  return response.data
 }
 
 /**
@@ -88,11 +89,12 @@ export const createAdminUser = async (
   token: string,
   data: CreateUserRequest
 ): Promise<AdminUser> => {
-  return apiRequest<AdminUser>('/admin/users', {
+  const response = await apiRequest<{ data: AdminUser }>('/admin/users', {
     method: 'POST',
     token,
     body: data,
   })
+  return response.data
 }
 
 /**
@@ -100,7 +102,8 @@ export const createAdminUser = async (
  * GET /admin/users/{userID}
  */
 export const getAdminUser = async (token: string, userId: number): Promise<AdminUser> => {
-  return apiRequest<AdminUser>(`/admin/users/${userId}`, { token })
+  const response = await apiRequest<{ data: AdminUser }>(`/admin/users/${userId}`, { token })
+  return response.data
 }
 
 /**
@@ -112,11 +115,12 @@ export const updateAdminUser = async (
   userId: number,
   data: UpdateUserRequest
 ): Promise<AdminUser> => {
-  return apiRequest<AdminUser>(`/admin/users/${userId}`, {
+  const response = await apiRequest<{ data: AdminUser }>(`/admin/users/${userId}`, {
     method: 'PATCH',
     token,
     body: data,
   })
+  return response.data
 }
 
 /**
@@ -140,10 +144,11 @@ export const resetUserPassword = async (
  * POST /admin/users/{userID}/activate
  */
 export const activateUser = async (token: string, userId: number): Promise<AdminUser> => {
-  return apiRequest<AdminUser>(`/admin/users/${userId}/activate`, {
+  const response = await apiRequest<{ data: AdminUser }>(`/admin/users/${userId}/activate`, {
     method: 'POST',
     token,
   })
+  return response.data
 }
 
 /**
@@ -151,10 +156,11 @@ export const activateUser = async (token: string, userId: number): Promise<Admin
  * POST /admin/users/{userID}/deactivate
  */
 export const deactivateUser = async (token: string, userId: number): Promise<AdminUser> => {
-  return apiRequest<AdminUser>(`/admin/users/${userId}/deactivate`, {
+  const response = await apiRequest<{ data: AdminUser }>(`/admin/users/${userId}/deactivate`, {
     method: 'POST',
     token,
   })
+  return response.data
 }
 
 /**
@@ -180,6 +186,16 @@ export const roleLabels: Record<UserRole, string> = {
   PANITIA: 'Panitia',
   KETUA_TPS: 'Ketua TPS',
   OPERATOR_PANEL: 'Operator Panel',
+  VIEWER: 'Viewer',
+}
+
+export const adminRoleLabels: Record<string, string> = {
+  ADMIN: 'Admin',
+  SUPER_ADMIN: 'Super Admin',
+  TPS_OPERATOR: 'Operator TPS',
+  KETUA_TPS: 'Ketua TPS',
+  OPERATOR_PANEL: 'Operator Panel',
+  PANITIA: 'Panitia',
   VIEWER: 'Viewer',
 }
 

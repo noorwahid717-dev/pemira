@@ -8,7 +8,9 @@ type Props = {
   allowRoles?: string[]
 }
 
-const AdminProtectedRoute = ({ component: Component, redirectTo = '/admin/login', allowRoles = ['ADMIN', 'PANITIA', 'PANITIA_UNI'] }: Props): JSX.Element => {
+const DEFAULT_ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'PANITIA', 'PANITIA_UNI', 'TPS_OPERATOR', 'KETUA_TPS', 'OPERATOR_PANEL', 'VIEWER']
+
+const AdminProtectedRoute = ({ component: Component, redirectTo = '/admin/login', allowRoles = DEFAULT_ADMIN_ROLES }: Props): JSX.Element => {
   const { token, user } = useAdminAuth()
 
   if (!token || !user || (allowRoles.length > 0 && !allowRoles.includes(user.role))) {

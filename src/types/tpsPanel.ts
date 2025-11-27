@@ -1,4 +1,4 @@
-export type TPSQueueStatus = 'CHECKED_IN' | 'VOTED'
+export type TPSQueueStatus = 'PENDING' | 'CHECKED_IN' | 'VOTED'
 
 export type TPSVotingMode = 'mobile' | 'device'
 
@@ -27,9 +27,9 @@ export type TPSActivityLog = {
 export type TPSPanelInfo = {
   tpsName: string
   tpsCode: string
-  lokasi: string
+  lokasi?: string
   status: string
-  jamOperasional: string
+  jamOperasional?: string
   totalVoters: number
 }
 
@@ -82,4 +82,17 @@ export type TPSHistoryRecord = {
   nim?: string
   nama?: string
   detail?: string
+}
+
+export type TPSPanelStats = {
+  totalRegisteredTpsVoters: number
+  totalCheckedIn: number
+  totalVoted: number
+  totalNotVoted: number
+}
+
+export type TPSTimelinePoint = {
+  hour: string
+  checkedIn: number
+  voted: number
 }

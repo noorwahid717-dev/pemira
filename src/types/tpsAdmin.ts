@@ -27,3 +27,31 @@ export type TPSAdmin = {
   updatedAt?: string
   operators?: TPSOperator[]
 }
+
+export type TPSAllocationSummary = {
+  totalTpsVoters: number
+  allocatedToThisTps: number
+  voted: number
+  notVoted: number
+  voters?: Array<{
+    voterId: number
+    nim: string
+    name: string
+    hasVoted: boolean
+    votedAt?: string | null
+  }>
+}
+
+export type TPSTimelinePoint = {
+  hour: string
+  checkins: number
+  approved: number
+  voted: number
+}
+
+export type TPSActivitySummary = {
+  checkinsToday: number
+  voted: number
+  notVoted: number
+  timeline: TPSTimelinePoint[]
+}

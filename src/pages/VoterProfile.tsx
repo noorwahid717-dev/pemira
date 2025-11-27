@@ -65,9 +65,11 @@ const VoterProfile = (): JSX.Element => {
         
         const normalizeVoterType = () => {
           const raw = (profileData.personal_info.voter_type || '').toUpperCase()
+          const sessionRole = session?.user.role?.toUpperCase?.()
+          if (sessionRole === 'LECTURER' || sessionRole === 'STAFF' || sessionRole === 'STUDENT') return sessionRole
           if (raw === 'STUDENT' || raw === 'LECTURER' || raw === 'STAFF') return raw
-          if (profileData.personal_info.nidn || profileData.personal_info.department) return 'LECTURER'
-          if (profileData.personal_info.nip || profileData.personal_info.unit || profileData.personal_info.position) return 'STAFF'
+          if (profileData.personal_info.nidn || profileData.personal_info.department || profileData.personal_info.department_name) return 'LECTURER'
+          if (profileData.personal_info.nip || profileData.personal_info.unit || profileData.personal_info.unit_name || profileData.personal_info.position) return 'STAFF'
           if (profileData.personal_info.study_program_name || profileData.personal_info.semester) return 'STUDENT'
           return 'STUDENT'
         }
@@ -232,6 +234,8 @@ const VoterProfile = (): JSX.Element => {
   const isStudent = personal_info.voter_type === 'STUDENT'
   const isLecturer = personal_info.voter_type === 'LECTURER'
   const isStaff = personal_info.voter_type === 'STAFF'
+  const lecturerDepartment = personal_info.department || personal_info.department_name
+  const staffUnit = personal_info.unit || personal_info.unit_name || (isStaff ? personal_info.faculty_name : undefined)
 
   return (
     <div className="voter-profile-page">
@@ -343,10 +347,10 @@ const VoterProfile = (): JSX.Element => {
                   </div>
                 )}
                 
-                {personal_info.department && (
+                {lecturerDepartment && (
                   <div className="info-item">
                     <span className="info-label">Unit Kerja</span>
-                    <span className="info-value">{personal_info.department}</span>
+                    <span className="info-value">{lecturerDepartment}</span>
                   </div>
                 )}
                 
@@ -369,10 +373,10 @@ const VoterProfile = (): JSX.Element => {
                   </div>
                 )}
                 
-                {personal_info.unit && (
+                {staffUnit && (
                   <div className="info-item">
                     <span className="info-label">Unit Kerja</span>
-                    <span className="info-value">{personal_info.unit}</span>
+                    <span className="info-value">{staffUnit}</span>
                   </div>
                 )}
               </>

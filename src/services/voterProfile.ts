@@ -16,10 +16,12 @@ export type VoterCompleteProfile = {
     // For lecturers
     nidn?: string
     department?: string
+    department_name?: string
     title?: string
     // For staff
     nip?: string
     unit?: string
+    unit_name?: string
     position?: string
     photo_url?: string
   }

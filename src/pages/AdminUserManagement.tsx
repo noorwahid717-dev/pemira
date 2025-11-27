@@ -12,6 +12,7 @@ import {
   deactivateUser,
   resetUserPassword,
   roleLabels,
+  adminRoleLabels,
   getRoleColor,
   type AdminUser,
   type UserRole,
@@ -63,12 +64,20 @@ const AdminUserManagement = (): JSX.Element => {
       if (search) params.append('search', search)
       if (roleFilter !== 'all') params.append('role', roleFilter)
       if (activeFilter !== 'all') params.append('active', activeFilter)
-      params.append('page', page.toString())
-      params.append('limit', limit.toString())
+      params.append('page', '1')
+      params.append('limit', '1000')
 
       const response = await listAdminUsers(token, params)
-      setUsers(response.items || [])
-      setTotal(response.total_items || 0)
+      
+      // Filter hanya role admin di frontend
+      const adminRoles = ['ADMIN', 'SUPER_ADMIN', 'TPS_OPERATOR', 'KETUA_TPS', 'OPERATOR_PANEL', 'PANITIA', 'VIEWER']
+      const filteredUsers = (response.items || []).filter(user => adminRoles.includes(user.role))
+      
+      // Pagination manual
+      const startIdx = (page - 1) * limit
+      const endIdx = startIdx + limit
+      setUsers(filteredUsers.slice(startIdx, endIdx))
+      setTotal(filteredUsers.length)
     } catch (err) {
       console.error('Failed to fetch users', err)
       setError((err as any)?.message || 'Gagal memuat data pengguna')
@@ -239,7 +248,7 @@ const AdminUserManagement = (): JSX.Element => {
           <input type="search" placeholder="Cari username/email/nama..." value={search} onChange={(e) => setSearch(e.target.value)} />
           <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as UserRole | 'all')}>
             <option value="all">Semua Role</option>
-            {Object.entries(roleLabels).map(([value, label]) => (
+            {Object.entries(adminRoleLabels).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
@@ -304,7 +313,7 @@ const AdminUserManagement = (): JSX.Element => {
                         <span className="status-chip status-blocked">Nonaktif</span>
                       )}
                     </td>
-                    <td>{user.last_login_at ? new Date(user.last_login_at).toLocaleString('id-ID') : '-'}</td>
+                    <td>{user.last_login_at ? new Date(user.last_login_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Belum pernah login</span>}</td>
                     <td>{user.login_count}</td>
                     <td>
                       <button className="btn-table" type="button" onClick={() => openEditModal(user)} style={{ marginRight: '4px' }}>
@@ -373,7 +382,7 @@ const AdminUserManagement = (): JSX.Element => {
                 <div className="form-field">
                   <label>Role *</label>
                   <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}>
-                    {Object.entries(roleLabels).map(([value, label]) => (
+                    {Object.entries(adminRoleLabels).map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>
@@ -416,7 +425,7 @@ const AdminUserManagement = (): JSX.Element => {
                 <div className="form-field">
                   <label>Role *</label>
                   <select value={editFormData.role || 'ADMIN'} onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as UserRole })}>
-                    {Object.entries(roleLabels).map(([value, label]) => (
+                    {Object.entries(adminRoleLabels).map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>

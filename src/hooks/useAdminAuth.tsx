@@ -77,6 +77,7 @@ export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true)
     setError(undefined)
     try {
+      console.log('[admin-login] attempt', { username })
       const response = await apiRequest<{
         access_token: string
         refresh_token?: string
@@ -85,12 +86,13 @@ export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
         method: 'POST',
         body: { username, password },
       })
+      console.log('[admin-login] success', { user: response.user })
       const bundle: TokenBundle = { accessToken: response.access_token, refreshToken: response.refresh_token }
       setTokenBundle(bundle)
       persistTokens(bundle)
       setUser(response.user)
     } catch (err) {
-      console.error('Admin login failed', err)
+      console.error('[admin-login] failed', err)
       setError((err as { message?: string }).message ?? 'Login gagal')
       setUser(null)
       setTokenBundle(null)

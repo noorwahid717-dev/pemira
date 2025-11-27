@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Admin Users API</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+    .success { background-color: #d4edda; }
+    .error { background-color: #f8d7da; }
+    pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Test Admin Users API</h1>
+  
+  <div class="section">
+    <h2>1. Login</h2>
+    <button onclick="login()">Login as Admin</button>
+    <div id="loginResult"></div>
+  </div>
+
+  <div class="section">
+    <h2>2. Get Users List</h2>
+    <button onclick="getUsers()">Get Users</button>
+    <div id="usersResult"></div>
+  </div>
+
+  <script>
+    let token = null;
+
+    async function login() {
+      const result = document.getElementById('loginResult');
+      result.innerHTML = 'Loading...';
+      
+      try {
+        const response = await fetch('http://localhost:8080/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: 'admin',
+            password: 'password123'
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          token = data.access_token;
+          result.className = 'section success';
+          result.innerHTML = `
+            <h3>✅ Login Success</h3>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          `;
+        } else {
+          result.className = 'section error';
+          result.innerHTML = `
+            <h3>❌ Login Failed</h3>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          `;
+        }
+      } catch (error) {
+        result.className = 'section error';
+        result.innerHTML = `
+          <h3>❌ Error</h3>
+          <pre>${error.message}</pre>
+        `;
+      }
+    }
+
+    async function getUsers() {
+      const result = document.getElementById('usersResult');
+      
+      if (!token) {
+        result.className = 'section error';
+        result.innerHTML = '❌ Please login first!';
+        return;
+      }
+      
+      result.innerHTML = 'Loading...';
+      
+      try {
+        const response = await fetch('http://localhost:8080/api/v1/admin/users?page=1&limit=20', {
+          method: 'GET',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          result.className = 'section success';
+          
+          // Check structure
+          const hasData = data.data !== undefined;
+          const items = hasData ? data.data.items : data.items;
+          const total = hasData ? data.data.total_items : data.total_items;
+          
+          result.innerHTML = `
+            <h3>✅ Get Users Success</h3>
+            <p><strong>Structure:</strong> ${hasData ? 'Has "data" wrapper' : 'Direct response'}</p>
+            <p><strong>Total items:</strong> ${total}</p>
+            <p><strong>Items in current page:</strong> ${items ? items.length : 0}</p>
+            <h4>Full Response:</h4>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          `;
+        } else {
+          result.className = 'section error';
+          result.innerHTML = `
+            <h3>❌ Request Failed</h3>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          `;
+        }
+      } catch (error) {
+        result.className = 'section error';
+        result.innerHTML = `
+          <h3>❌ Error</h3>
+          <pre>${error.message}</pre>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>

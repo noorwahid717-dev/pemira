@@ -379,7 +379,22 @@
 .mini-chart-bar {
   height: 10px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #4f46e5, #7c3aed);
+  background: #e5e7eb;
+  position: relative;
+  overflow: hidden;
+}
+
+.mini-chart-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: #4f46e5;
+  border-radius: 999px;
+}
+
+.mini-chart-fill.voted {
+  background: #10b981;
 }
 
 .danger-zone {

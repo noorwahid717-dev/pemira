@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import AdminLayout from '../components/admin/AdminLayout'
+import { LucideIcon, type IconName } from '../components/LucideIcon'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 import { useDPTAdminStore } from '../hooks/useDPTAdminStore'
 import { deleteAdminDptVoter } from '../services/adminDpt'
@@ -38,6 +39,8 @@ const AdminDPTList = (): JSX.Element => {
   const { voters, total, page, limit, setPage, filters, setFilters, selected, toggleSelect, selectAll, clearSelection, refresh, loading, error } = useDPTAdminStore()
   const [deleting, setDeleting] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [openActionId, setOpenActionId] = useState<string | null>(null)
+  const actionDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const { showToast } = useToast()
   const { showPopup } = usePopup()
 
@@ -195,6 +198,19 @@ const AdminDPTList = (): JSX.Element => {
     setUpdating(false)
   }
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!openActionId) return
+      const dropdownNode = actionDropdownRefs.current[openActionId]
+      if (dropdownNode && event.target instanceof Node && !dropdownNode.contains(event.target)) {
+        setOpenActionId(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [openActionId])
+
   return (
     <AdminLayout title="Daftar Pemilih">
       <div className="admin-dpt-page">
@@ -319,86 +335,142 @@ const AdminDPTList = (): JSX.Element => {
                   </td>
                 </tr>
               )}
-              {filteredVoters.map((voter, idx) => (
-                <tr key={voter.id}>
-                  <td>
-                    <input type="checkbox" checked={selected.has(voter.id)} onChange={() => toggleSelect(voter.id)} />
-                  </td>
-                  <td>{startIndex + idx + 1}</td>
-                  <td>{voter.nim}</td>
-                  <td>{voter.nama}</td>
-                  <td>{voter.fakultas}</td>
-                  <td>{voter.prodi}</td>
-                  <td>{voter.semester ?? '-'}</td>
-                  <td>
-                    {voter.tipe ? (
-                      voter.tipe
-                    ) : (
-                      <span style={{ color: '#ff6b6b', fontWeight: 'bold' }} title="Tipe pemilih belum ditentukan">
-                        ⚠️ Belum ditentukan
-                      </span>
-                    )}
-                  </td>
-                  <td>{akademikLabels[voter.akademik]}</td>
-                  <td>
-                    {voter.electionVoterStatus ? (
-                      <span className={`status-chip status-${voter.electionVoterStatus.toLowerCase()}`}>
-                        {electionVoterStatusLabels[voter.electionVoterStatus]}
-                      </span>
-                    ) : (
-                      <span className="status-chip">-</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`status-chip ${voter.statusSuara}`}>{statusSuaraLabels[voter.statusSuara]}</span>
-                  </td>
-                  <td>
-                    <div className="stacked-cell">
-                      <span>{voter.metodeVoting}</span>
-                      {voter.waktuVoting && <small>{new Date(voter.waktuVoting).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</small>}
-                    </div>
-                  </td>
-                  <td>
-                    {voter.electionVoterStatus === 'PENDING' && (
-                      <button 
-                        className="btn-table" 
-                        type="button" 
-                        onClick={() => void handleUpdateStatus(voter.id, 'VERIFIED', voter.nama)} 
-                        disabled={deleting || updating}
-                        style={{ marginRight: '4px', backgroundColor: '#10b981', color: 'white' }}
+              {filteredVoters.map((voter, idx) => {
+                const rowActions = [
+                  voter.electionVoterStatus === 'PENDING'
+                    ? {
+                        key: 'verify',
+                        label: 'Verifikasi',
+                        icon: 'shieldCheck',
+                        onClick: () => void handleUpdateStatus(voter.id, 'VERIFIED', voter.nama)
+                      }
+                    : null,
+                  voter.electionVoterStatus === 'VERIFIED'
+                    ? {
+                        key: 'reject',
+                        label: 'Tolak Verifikasi',
+                        icon: 'xCircle',
+                        onClick: () => void handleUpdateStatus(voter.id, 'REJECTED', voter.nama)
+                      }
+                    : null,
+                  {
+                    key: 'detail',
+                    label: 'Detail',
+                    icon: 'fileText',
+                    onClick: () => navigate(`/admin/dpt/${voter.id}`)
+                  },
+                  {
+                    key: 'edit',
+                    label: 'Edit',
+                    icon: 'pencil',
+                    onClick: () => navigate(`/admin/dpt/${voter.id}/edit`)
+                  },
+                  {
+                    key: 'delete',
+                    label: 'Hapus',
+                    icon: 'trash',
+                    onClick: () => void handleDeleteVoter(voter.id, voter.nama),
+                    variant: 'danger'
+                  }
+                ].filter(Boolean) as Array<{
+                  key: string
+                  label: string
+                  icon: IconName
+                  onClick: () => void
+                  variant?: 'danger'
+                }>
+                const isMenuOpen = openActionId === voter.id
+
+                return (
+                  <tr key={voter.id}>
+                    <td>
+                      <input type="checkbox" checked={selected.has(voter.id)} onChange={() => toggleSelect(voter.id)} />
+                    </td>
+                    <td>{startIndex + idx + 1}</td>
+                    <td>{voter.nim}</td>
+                    <td>{voter.nama}</td>
+                    <td>{voter.fakultas}</td>
+                    <td>{voter.prodi}</td>
+                    <td>{voter.semester ?? '-'}</td>
+                    <td>
+                      {voter.tipe ? (
+                        voter.tipe
+                      ) : (
+                        <span style={{ color: '#ff6b6b', fontWeight: 'bold' }} title="Tipe pemilih belum ditentukan">
+                          ⚠️ Belum ditentukan
+                        </span>
+                      )}
+                    </td>
+                    <td>{akademikLabels[voter.akademik]}</td>
+                    <td>
+                      {voter.electionVoterStatus ? (
+                        <span className={`status-chip status-${voter.electionVoterStatus.toLowerCase()}`}>
+                          {electionVoterStatusLabels[voter.electionVoterStatus]}
+                        </span>
+                      ) : (
+                        <span className="status-chip">-</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`status-chip ${voter.statusSuara}`}>{statusSuaraLabels[voter.statusSuara]}</span>
+                    </td>
+                    <td>
+                      <div className="stacked-cell">
+                        <span>{voter.metodeVoting}</span>
+                        {voter.waktuVoting && <small>{new Date(voter.waktuVoting).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</small>}
+                      </div>
+                    </td>
+                    <td>
+                      <div
+                        className="action-dropdown"
+                        ref={(node) => {
+                          actionDropdownRefs.current[voter.id] = node
+                        }}
                       >
-                        ✓ Verifikasi
-                      </button>
-                    )}
-                    {voter.electionVoterStatus === 'VERIFIED' && (
-                      <button 
-                        className="btn-table" 
-                        type="button" 
-                        onClick={() => void handleUpdateStatus(voter.id, 'REJECTED', voter.nama)} 
-                        disabled={deleting || updating}
-                        style={{ marginRight: '4px', backgroundColor: '#ef4444', color: 'white' }}
-                      >
-                        ✗ Tolak
-                      </button>
-                    )}
-                    <button className="btn-table" type="button" onClick={() => navigate(`/admin/dpt/${voter.id}`)} disabled={deleting || updating}>
-                      Detail
-                    </button>
-                    <button className="btn-table" type="button" onClick={() => navigate(`/admin/dpt/${voter.id}/edit`)} disabled={deleting || updating} style={{ marginLeft: '4px' }}>
-                      Edit
-                    </button>
-                    <button className="btn-table danger" type="button" onClick={() => void handleDeleteVoter(voter.id, voter.nama)} disabled={deleting || updating} style={{ marginLeft: '4px' }}>
-                      Hapus
-                    </button>
-                  </td>
-                  <td>
-                    <div className="stacked-cell">
-                      <span>{voter.waktuVoting ? new Date(voter.waktuVoting).toLocaleString('id-ID') : '-'}</span>
-                      {voter.metodeVoting && voter.metodeVoting !== '-' && <small>{voter.metodeVoting.toUpperCase()}</small>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        <button
+                          className="action-toggle"
+                          type="button"
+                          onClick={() => setOpenActionId(isMenuOpen ? null : voter.id)}
+                          disabled={deleting || updating}
+                        >
+                          <LucideIcon name="settings" size={16} className="action-toggle-icon" />
+                          <span>Aksi</span>
+                          <LucideIcon
+                            name="chevronDown"
+                            size={16}
+                            className={`action-toggle-caret ${isMenuOpen ? 'open' : ''}`}
+                          />
+                        </button>
+                        {isMenuOpen && (
+                          <div className="action-menu">
+                            {rowActions.map((action) => (
+                              <button
+                                key={action.key}
+                                type="button"
+                                className={`action-item ${action.variant ?? ''}`}
+                                onClick={() => {
+                                  setOpenActionId(null)
+                                  action.onClick()
+                                }}
+                                disabled={deleting || updating}
+                              >
+                                <LucideIcon name={action.icon} size={16} className="action-icon" />
+                                <span>{action.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="stacked-cell">
+                        <span>{voter.waktuVoting ? new Date(voter.waktuVoting).toLocaleString('id-ID') : '-'}</span>
+                        {voter.metodeVoting && voter.metodeVoting !== '-' && <small>{voter.metodeVoting.toUpperCase()}</small>}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

@@ -46,29 +46,68 @@ const AdminDPTDetail = (): JSX.Element => {
           <div>
             <h1>Detail Pemilih – {voter.nim}</h1>
             <p>{voter.nama}</p>
+            <p className="inline-note">
+              Tipe: {voter.tipe === 'dosen' ? 'Dosen' : voter.tipe === 'staf' ? 'Staf' : 'Mahasiswa'}
+            </p>
           </div>
           <button className="btn-link" type="button" onClick={() => navigate('/admin/dpt')}>
             ← Kembali
           </button>
         </div>
 
-        <section className="card">
-          <h2>Data Personal</h2>
-          <ul>
-            <li>
-              <strong>Fakultas / Prodi:</strong> {voter.fakultas} – {voter.prodi}
-            </li>
-            <li>
-              <strong>Angkatan:</strong> {voter.angkatan}
-            </li>
-            <li>
-              <strong>Status Akademik:</strong> {voter.akademik}
-            </li>
-            <li>
-              <strong>Email Kampus:</strong> {voter.nim}@uniwa.ac.id
-            </li>
-          </ul>
-        </section>
+        {(() => {
+          const isMahasiswa = voter.tipe === 'mahasiswa'
+          const isDosen = voter.tipe === 'dosen'
+          const isStaf = voter.tipe === 'staf'
+          const identifierLabel = isMahasiswa ? 'NIM' : isDosen ? 'NIDN' : isStaf ? 'NIP/NIY' : 'Identitas'
+          const emailDisplay = voter.email || `${voter.nim}@uniwa.ac.id`
+          const facultyLabel = isStaf ? 'Unit Kerja' : 'Fakultas'
+          const programLabel = isMahasiswa ? 'Program Studi' : isDosen ? 'Departemen' : 'Bagian/Unit Detail'
+          const facultyValue = isStaf ? (voter.fakultas || voter.prodi || '-') : voter.fakultas
+          const programValue = isStaf ? (voter.prodi || voter.fakultas || '-') : voter.prodi
+          
+          return (
+            <section className="card">
+              <h2>Data Personal</h2>
+              <ul>
+                <li>
+                  <strong>{identifierLabel}:</strong> {voter.nim}
+                </li>
+                <li>
+                  <strong>Nama Lengkap:</strong> {voter.nama}
+                </li>
+                <li>
+                  <strong>{facultyLabel}:</strong> {facultyValue || '-'}
+                </li>
+                {programValue && programValue !== '-' && (
+                  <li>
+                    <strong>{programLabel}:</strong> {programValue}
+                  </li>
+                )}
+                {isMahasiswa && (
+                  <>
+                    {voter.angkatan && voter.angkatan !== '-' && (
+                      <li>
+                        <strong>Angkatan:</strong> {voter.angkatan}
+                      </li>
+                    )}
+                    {voter.semester && (
+                      <li>
+                        <strong>Semester:</strong> {voter.semester}
+                      </li>
+                    )}
+                    <li>
+                      <strong>Status Akademik:</strong> {voter.akademik}
+                    </li>
+                  </>
+                )}
+                <li>
+                  <strong>Email Kampus:</strong> {emailDisplay}
+                </li>
+              </ul>
+            </section>
+          )
+        })()}
 
         <section className="card">
           <h2>Status Hak Suara</h2>

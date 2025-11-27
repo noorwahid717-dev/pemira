@@ -24,7 +24,7 @@ const AdminDPTEdit = () => {
     email: '',
     fakultas: '',
     prodi: '',
-    semester: 1,
+    semester: '',
     tipe: 'mahasiswa' as 'mahasiswa' | 'dosen' | 'staf',
     akademik: 'aktif' as 'aktif' | 'cuti' | 'nonaktif',
     metodeVoting: 'online' as 'online' | 'tps',
@@ -55,7 +55,7 @@ const AdminDPTEdit = () => {
             email: data.email || '',
             fakultas: data.fakultas,
             prodi: data.prodi,
-            semester: parseInt(data.semester || '1') || 1,
+            semester: data.semester || '',
             tipe: (data.tipe as 'mahasiswa' | 'dosen' | 'staf') || 'mahasiswa',
             akademik: data.akademik,
             metodeVoting: (data.metodeVoting as 'online' | 'tps') || 'online',
@@ -93,9 +93,26 @@ const AdminDPTEdit = () => {
       if (!isAfterVote) {
         updatePayload.name = formData.nama
         updatePayload.email = formData.email
-        updatePayload.faculty_name = formData.fakultas
-        updatePayload.study_program_name = formData.prodi
-        updatePayload.semester = formData.semester
+        const facultyValue = formData.fakultas
+        const programValue = formData.prodi
+
+        // Align with registration form semantics:
+        // - mahasiswa: fakultas + program studi + semester
+        // - dosen: fakultas (unit) + departemen
+        // - staf: unit kerja + detail unit
+        if (formData.tipe === 'mahasiswa') {
+          updatePayload.faculty_name = facultyValue
+          updatePayload.study_program_name = programValue
+          updatePayload.semester = formData.semester ? parseInt(formData.semester) : undefined
+        } else if (formData.tipe === 'dosen') {
+          updatePayload.faculty_name = facultyValue
+          updatePayload.study_program_name = programValue
+          updatePayload.semester = undefined
+        } else if (formData.tipe === 'staf') {
+          updatePayload.faculty_name = facultyValue
+          updatePayload.study_program_name = programValue
+          updatePayload.semester = undefined
+        }
       }
 
       await updateAdminDptVoter(token, id, updatePayload, activeElectionId)
@@ -141,6 +158,9 @@ const AdminDPTEdit = () => {
           <div>
             <h1>Edit Pemilih – {voter.nim}</h1>
             <p>Ubah data pemilih yang sudah terdaftar</p>
+            <p className="inline-note">
+              Tipe: {formData.tipe === 'dosen' ? 'Dosen' : formData.tipe === 'staf' ? 'Staf' : 'Mahasiswa'}
+            </p>
           </div>
           <button className="btn-link" type="button" onClick={() => navigate('/admin/dpt')}>
             ← Kembali
@@ -188,7 +208,7 @@ const AdminDPTEdit = () => {
               </div>
 
               <div className="form-field">
-                <label>Fakultas *</label>
+                <label>{formData.tipe === 'staf' ? 'Unit Kerja' : 'Fakultas'} *</label>
                 <input
                   type="text"
                   value={formData.fakultas}
@@ -201,44 +221,52 @@ const AdminDPTEdit = () => {
               </div>
 
               <div className="form-field">
-                <label>Program Studi *</label>
+                <label>
+                  {formData.tipe === 'mahasiswa' ? 'Program Studi' : formData.tipe === 'dosen' ? 'Departemen' : 'Bagian/Unit Detail'}
+                  {formData.tipe !== 'staf' && ' *'}
+                </label>
                 <input
                   type="text"
                   value={formData.prodi}
                   onChange={(e) => setFormData((prev) => ({ ...prev, prodi: e.target.value }))}
-                  required
+                  required={formData.tipe !== 'staf'}
                   disabled={isAfterVote}
                   style={isAfterVote ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
-                />
+                  />
                 {isAfterVote && <small style={{ color: '#ff6b6b' }}>Tidak dapat diubah setelah voting</small>}
               </div>
 
-              <div className="form-field">
-                <label>Semester *</label>
-                <select
-                  value={formData.semester}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, semester: parseInt(e.target.value) }))}
-                  required
-                  disabled={isAfterVote}
-                  style={isAfterVote ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
-                >
-                  {Array.from({ length: 8 }, (_, i) => i + 1).map((sem) => (
-                    <option key={sem} value={sem}>
-                      {sem}
-                    </option>
-                  ))}
-                </select>
-                {isAfterVote && <small style={{ color: '#ff6b6b' }}>Tidak dapat diubah setelah voting</small>}
-              </div>
+              {formData.tipe === 'mahasiswa' && (
+                <>
+                  <div className="form-field">
+                    <label>Semester *</label>
+                    <select
+                      value={formData.semester || ''}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, semester: e.target.value }))}
+                      required
+                      disabled={isAfterVote}
+                      style={isAfterVote ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
+                    >
+                      <option value="">Pilih semester</option>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((sem) => (
+                        <option key={sem} value={sem}>
+                          {sem}
+                        </option>
+                      ))}
+                    </select>
+                    {isAfterVote && <small style={{ color: '#ff6b6b' }}>Tidak dapat diubah setelah voting</small>}
+                  </div>
 
-              <div className="form-field">
-                <label>Status Akademik</label>
-                <select value={formData.akademik} onChange={(e) => setFormData((prev) => ({ ...prev, akademik: e.target.value as typeof formData.akademik }))}>
-                  <option value="aktif">Aktif</option>
-                  <option value="cuti">Cuti</option>
-                  <option value="nonaktif">Nonaktif</option>
-                </select>
-              </div>
+                  <div className="form-field">
+                    <label>Status Akademik</label>
+                    <select value={formData.akademik} onChange={(e) => setFormData((prev) => ({ ...prev, akademik: e.target.value as typeof formData.akademik }))}>
+                      <option value="aktif">Aktif</option>
+                      <option value="cuti">Cuti</option>
+                      <option value="nonaktif">Nonaktif</option>
+                    </select>
+                  </div>
+                </>
+              )}
 
               <div className="form-field">
                 <label>Tipe Pemilih *</label>

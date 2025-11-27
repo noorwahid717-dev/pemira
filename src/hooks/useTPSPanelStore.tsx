@@ -1,6 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { panitiaProfile, tpsPanelInfo, tpsStaticQRInfo } from '../data/tpsPanel'
-import { approveTpsCheckin, fetchTpsPanelQueue, fetchTpsPanelSummary, rejectTpsCheckin } from '../services/tpsPanel'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { approveTpsCheckin, fetchTpsPanelDashboard, fetchTpsPanelQueue, fetchTpsPanelTimeline, rejectTpsCheckin } from '../services/tpsPanel'
 import type {
   TPSActivityLog,
   TPSHistoryRecord,
@@ -8,10 +7,11 @@ import type {
   TPSPanitiaProfile,
   TPSPanelNotification,
   TPSQueueEntry,
-  TPSQueueFeedPayload,
   TPSQueueStatus,
   TPSStaticQRInfo,
   TPSVotingMode,
+  TPSPanelStats,
+  TPSTimelinePoint,
 } from '../types/tpsPanel'
 
 type QueueSnapshotEntry = Omit<TPSQueueEntry, 'token' | 'verifiedAt'> & {
@@ -42,6 +42,8 @@ type UpdateQueueOptions = {
 
 type TPSPanelContextValue = {
   panelInfo: TPSPanelInfo
+  panelStats: TPSPanelStats | null
+  timelinePoints: TPSTimelinePoint[]
   panitia: TPSPanitiaProfile
   staticQr: TPSStaticQRInfo
   queue: TPSQueueEntry[]
@@ -55,20 +57,22 @@ type TPSPanelContextValue = {
   setPanelStatus: (status: string) => void
   triggerManualRefresh: () => void
   updateQueueStatus: (entryId: string, status: TPSQueueStatus, options?: UpdateQueueOptions) => void
-  addQueueEntry: (entry: Omit<TPSQueueEntry, 'id' | 'status' | 'token' | 'waktuScan'>) => void
+  addQueueEntry: (entry: Omit<TPSQueueEntry, 'id' | 'status' | 'checkInToken' | 'waktuCheckIn'>) => void
   removeFromQueue: (entryId: string) => void
   dismissNotification: () => void
   setPanelMode: (mode: TPSVotingMode) => void
-  syncFromApi: (token: string, tpsId: string) => Promise<void>
-  approveCheckinApi: (token: string, tpsId: string, checkinId: string) => Promise<void>
-  rejectCheckinApi: (token: string, tpsId: string, checkinId: string, reason?: string) => Promise<void>
+  syncFromApi: (token: string, tpsId: string, electionId?: number | null) => Promise<void>
+  approveCheckinApi: (token: string, tpsId: string, checkinId: string, electionId?: number | null) => Promise<void>
+  rejectCheckinApi: (token: string, tpsId: string, checkinId: string, reason?: string, electionId?: number | null) => Promise<void>
   checkInVoter: () => Promise<boolean>
 }
 
 const TPSPanelContext = createContext<TPSPanelContextValue | undefined>(undefined)
 
 export const TPSPanelProvider = ({ children }: { children: ReactNode }) => {
-  const [panelInfo, setPanelInfo] = useState<TPSPanelInfo>(tpsPanelInfo)
+  const [panelInfo, setPanelInfo] = useState<TPSPanelInfo>({ tpsName: '-', tpsCode: '-', status: '-', totalVoters: 0 })
+  const [panelStats, setPanelStats] = useState<TPSPanelStats | null>(null)
+  const [timelinePoints, setTimelinePoints] = useState<TPSTimelinePoint[]>([])
   const [queue, setQueue] = useState<TPSQueueEntry[]>([])
   const [logs, setLogs] = useState<TPSActivityLog[]>([])
   const [historyRecords, setHistoryRecords] = useState<TPSHistoryRecord[]>([])
@@ -76,8 +80,8 @@ export const TPSPanelProvider = ({ children }: { children: ReactNode }) => {
   const [tokenExpiresIn, setTokenExpiresIn] = useState<number>(QR_ROTATION_INTERVAL)
   const [notification, setNotification] = useState<TPSPanelNotification | null>(null)
   const [panelMode, setPanelMode] = useState<TPSVotingMode>('mobile')
-
-  const feedRef = useRef<TPSQueueFeedPayload[]>([])
+  const panitiaProfile: TPSPanitiaProfile = { nama: 'Operator TPS', role: 'Operator', shift: '-' }
+  const tpsStaticQRInfo: TPSStaticQRInfo = { id: '', status: 'Nonaktif', description: '', notes: [], fileUrl: '' }
 
   const pushLog = useCallback((message: string) => {
     setLogs((prev) => {
@@ -108,10 +112,7 @@ export const TPSPanelProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const capQueueSize = useCallback((items: TPSQueueEntry[]) => {
-    const waiting = items.filter((item) => item.status === 'waiting')
-    const others = items.filter((item) => item.status !== 'waiting')
-    const allowedOthers = Math.max(0, MAX_QUEUE_ENTRIES - waiting.length)
-    return [...waiting, ...others.slice(0, allowedOthers)]
+    return items.slice(0, MAX_QUEUE_ENTRIES)
   }, [])
 
   const setPanelStatus = useCallback(
@@ -217,17 +218,19 @@ export const TPSPanelProvider = ({ children }: { children: ReactNode }) => {
   )
 
   const syncFromApi = useCallback(
-    async (token: string, tpsId: string) => {
+    async (token: string, tpsId: string, electionId?: number | null) => {
       try {
-        const [summary, items] = await Promise.all([fetchTpsPanelSummary(token, tpsId), fetchTpsPanelQueue(token, tpsId)])
+        const [dashboard, items, timeline] = await Promise.all([
+          fetchTpsPanelDashboard(token, tpsId, electionId),
+          fetchTpsPanelQueue(token, tpsId, electionId, 'ALL'),
+          fetchTpsPanelTimeline(token, tpsId, electionId).catch(() => []),
+        ])
         setPanelInfo((prev) => ({
           ...prev,
-          tpsName: summary.name ?? prev.tpsName,
-          tpsCode: summary.code ?? prev.tpsCode,
-          lokasi: summary.location ?? prev.lokasi,
-          status: summary.status?.toUpperCase() === 'ACTIVE' ? 'Aktif' : summary.status ?? prev.status,
-          totalVoters: summary.stats?.total_votes ?? prev.totalVoters,
+          ...dashboard.info,
         }))
+        setPanelStats(dashboard.stats)
+        setTimelinePoints(timeline)
         setQueue(items)
         pushLog('Queue disinkron dari API TPS')
         pushHistory({ type: 'open', detail: 'Sinkronisasi queue dari API' })
@@ -245,21 +248,6 @@ export const TPSPanelProvider = ({ children }: { children: ReactNode }) => {
     [pushHistory, pushLog, showNotification],
   )
 
-  const approveCheckinApi = useCallback(
-    async (token: string, tpsId: string, checkinId: string) => {
-      await approveTpsCheckin(token, tpsId, checkinId)
-      updateQueueStatus(checkinId, 'verified', { notify: true })
-    },
-    [updateQueueStatus],
-  )
-
-  const rejectCheckinApi = useCallback(
-    async (token: string, tpsId: string, checkinId: string, reason?: string) => {
-      await rejectTpsCheckin(token, tpsId, checkinId, reason)
-      updateQueueStatus(checkinId, 'rejected', { notify: true, reason: reason ?? 'Ditolak' })
-    },
-    [updateQueueStatus],
-  )
   const removeFromQueue = useCallback(
     (entryId: string) => {
       setQueue((prev) => {
@@ -279,74 +267,29 @@ export const TPSPanelProvider = ({ children }: { children: ReactNode }) => {
     [pushHistory, pushLog, showNotification],
   )
 
-  const checkInVoter = useCallback(
-    async (): Promise<boolean> => {
-      try {
-        // Here we would validate the QR code and check-in the voter
-        // For now, simulate the check-in process
-        const mockVoterData = {
-          nim: '21034567',
-          nama: 'Roni Saputra',
-          fakultas: 'Teknik Informatika',
-          prodi: 'Teknik Informatika',
-          angkatan: '2021',
-          statusMahasiswa: 'Aktif',
-          mode: 'mobile' as TPSVotingMode,
-        }
-
-        // Check if voter is already checked in
-        const existing = queue.find((item) => item.nim === mockVoterData.nim)
-        if (existing) {
-          return false // Already checked in
-        }
-
-        // Add to queue as CHECKED_IN
-        addQueueEntry(mockVoterData)
-        return true
-      } catch (error) {
-        console.error('Check-in failed:', error)
-        return false
-      }
+  const approveCheckinApi = useCallback(
+    async (token: string, tpsId: string, checkinId: string, electionId?: number | null) => {
+      await approveTpsCheckin(token, tpsId, checkinId, electionId)
+      updateQueueStatus(checkinId, 'CHECKED_IN', { notify: true })
     },
-    [queue, addQueueEntry],
+    [updateQueueStatus],
   )
 
-  const fetchQueueSnapshot = useCallback(async () => {
-    setQueue((prev) => prev)
-  }, [])
+  const rejectCheckinApi = useCallback(
+    async (token: string, tpsId: string, checkinId: string, reason?: string, electionId?: number | null) => {
+      await rejectTpsCheckin(token, tpsId, checkinId, reason, electionId)
+      removeFromQueue(checkinId)
+    },
+    [removeFromQueue],
+  )
 
-  useEffect(() => {
-    if (!feedRef.current.length) return
-
-    let timer: number | undefined
-
-    const scheduleNext = () => {
-      if (!feedRef.current.length) return
-      const nextPayload = feedRef.current.shift()
-      if (!nextPayload) return
-
-      timer = window.setTimeout(() => {
-        addQueueEntry({
-          nim: nextPayload.nim,
-          nama: nextPayload.nama,
-          fakultas: nextPayload.fakultas,
-          prodi: nextPayload.prodi,
-          angkatan: nextPayload.angkatan,
-          statusMahasiswa: nextPayload.statusMahasiswa,
-          mode: nextPayload.mode,
-        })
-        scheduleNext()
-      }, nextPayload.delayMs)
-    }
-
-    scheduleNext()
-
-    return () => {
-      if (timer) {
-        window.clearTimeout(timer)
-      }
-    }
-  }, [addQueueEntry])
+  const checkInVoter = useCallback(
+    async (): Promise<boolean> => {
+      // Check-in via panel dihandle lewat API createTpsCheckin; fungsi ini hanya placeholder
+      return false
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!notification) return
@@ -357,6 +300,8 @@ export const TPSPanelProvider = ({ children }: { children: ReactNode }) => {
   const value = useMemo(
     () => ({
       panelInfo,
+      panelStats,
+      timelinePoints,
       panitia: panitiaProfile,
       staticQr: tpsStaticQRInfo,
       queue,
@@ -368,9 +313,7 @@ export const TPSPanelProvider = ({ children }: { children: ReactNode }) => {
       panelMode,
       refreshQrToken: () => rotateQrToken('manual'),
       setPanelStatus,
-      triggerManualRefresh: () => {
-        void fetchQueueSnapshot()
-      },
+      triggerManualRefresh: () => setQueue((prev) => [...prev]),
       syncFromApi,
       approveCheckinApi,
       rejectCheckinApi,
@@ -383,11 +326,12 @@ export const TPSPanelProvider = ({ children }: { children: ReactNode }) => {
     }),
     [
       addQueueEntry,
-      fetchQueueSnapshot,
       historyRecords,
       logs,
       notification,
       panelInfo,
+      panelStats,
+      timelinePoints,
       panelMode,
       queue,
       qrToken,

@@ -25,43 +25,57 @@ export type AuthTokens = {
 
 export type AuthResponse = AuthTokens & { user: AuthUser }
 
-// Registration Response Types (API v1.0)
+// Registration Response Types (API v2.0)
 export type StudentRegistrationResponse = {
-  voter_id: number
-  name: string
-  nim: string
-  email?: string
-  phone?: string
-  voter_type: 'STUDENT'
-  faculty_name?: string
-  program_name?: string
-  cohort_year?: number
   message: string
+  user: {
+    id: number
+    username: string
+    role: 'STUDENT'
+    voter_id: number
+    profile: {
+      name: string
+      faculty_name?: string
+      study_program_name?: string
+      semester?: string
+    }
+  }
+  voting_mode: 'ONLINE' | 'TPS'
 }
 
 export type LecturerRegistrationResponse = {
-  voter_id: number
-  name: string
-  nidn: string
-  email?: string
-  phone?: string
-  voter_type: 'LECTURER'
-  faculty_name?: string
-  department?: string
-  position?: string
   message: string
+  user: {
+    id: number
+    username: string
+    role: 'LECTURER'
+    voter_id: number
+    lecturer_id: number
+    profile: {
+      name: string
+      faculty_name?: string
+      department_name?: string
+      position?: string
+    }
+  }
+  voting_mode: 'ONLINE' | 'TPS'
 }
 
 export type StaffRegistrationResponse = {
-  voter_id: number
-  name: string
-  nip: string
-  email?: string
-  phone?: string
-  voter_type: 'STAFF'
-  unit?: string
-  job_title?: string
   message: string
+  user: {
+    id: number
+    username: string
+    role: 'STAFF'
+    voter_id: number
+    staff_id: number
+    profile: {
+      name: string
+      unit_name?: string
+      position?: string
+    }
+  }
+  voting_mode: 'ONLINE' | 'TPS'
 }
 
 export type RegistrationResponse = 
@@ -84,54 +98,53 @@ export type CheckAvailabilityResponse = {
 export const loginUser = (username: string, password: string) =>
   apiRequest<AuthResponse>('/auth/login', { method: 'POST', body: { username, password } })
 
-// New API v1.0 Registration Functions (Manual Input)
+// API v2.0 Registration Functions
 export const registerStudent = (payload: {
   nim: string
   name: string
-  password: string
   email?: string
-  phone?: string
-  photo_url?: string
+  faculty_name: string
+  study_program_name: string
+  semester: string
+  password: string
+  voting_mode?: 'ONLINE' | 'TPS'
 }) =>
-  apiRequest<{ data: StudentRegistrationResponse } | StudentRegistrationResponse>(
-    '/voters/register/student',
+  apiRequest<StudentRegistrationResponse>(
+    '/auth/register/student',
     {
       method: 'POST',
-      body: payload,
+      body: {
+        ...payload,
+        email: payload.email || '',
+        voting_mode: payload.voting_mode || 'ONLINE',
+      },
     }
-  ).then(res => (res as any).data || res as StudentRegistrationResponse)
+  )
 
-export const registerLecturer = (payload: {
-  nidn: string
+export const registerLecturerOrStaffV2 = (payload: {
+  type: 'LECTURER' | 'STAFF'
+  nidn?: string
+  nip?: string
   name: string
-  password: string
   email?: string
-  phone?: string
-  photo_url?: string
+  faculty_name?: string
+  department_name?: string
+  unit_name?: string
+  position: string
+  password: string
+  voting_mode?: 'ONLINE' | 'TPS'
 }) =>
-  apiRequest<{ data: LecturerRegistrationResponse } | LecturerRegistrationResponse>(
-    '/voters/register/lecturer',
+  apiRequest<LecturerRegistrationResponse | StaffRegistrationResponse>(
+    '/auth/register/lecturer-staff',
     {
       method: 'POST',
-      body: payload,
+      body: {
+        ...payload,
+        email: payload.email || '',
+        voting_mode: payload.voting_mode || 'ONLINE',
+      },
     }
-  ).then(res => (res as any).data || res as LecturerRegistrationResponse)
-
-export const registerStaff = (payload: {
-  nip: string
-  name: string
-  password: string
-  email?: string
-  phone?: string
-  photo_url?: string
-}) =>
-  apiRequest<{ data: StaffRegistrationResponse } | StaffRegistrationResponse>(
-    '/voters/register/staff',
-    {
-      method: 'POST',
-      body: payload,
-    }
-  ).then(res => (res as any).data || res as StaffRegistrationResponse)
+  )
 
 export const checkIdentityAvailability = (
   type: 'student' | 'lecturer' | 'staff',
@@ -152,19 +165,21 @@ export const registerLecturerOrStaff = (payload: {
   faculty_name?: string
   department_name?: string
   unit_name?: string
+  position?: string
   voting_mode?: 'ONLINE' | 'TPS'
 }) =>
-  apiRequest<RegisterResponse>('/auth/register/lecturer-staff', {
+  apiRequest<RegisterResponse | LecturerRegistrationResponse | StaffRegistrationResponse>('/auth/register/lecturer-staff', {
     method: 'POST',
     body: {
       type: payload.type,
       nidn: payload.type === 'LECTURER' ? payload.username : undefined,
       nip: payload.type === 'STAFF' ? payload.username : undefined,
       name: payload.name,
-      email: payload.email,
+      email: payload.email || '',
       faculty_name: payload.faculty_name,
       department_name: payload.department_name,
       unit_name: payload.unit_name,
+      position: payload.position || '',
       password: payload.password,
       voting_mode: payload.voting_mode,
     },

@@ -2,10 +2,24 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BrowserQRCodeSvgWriter } from '@zxing/library'
 import PemiraLogos from '../components/shared/PemiraLogos'
-import { loginUser, registerLecturerOrStaff, registerStudent, type RegisterResponse } from '../services/auth'
+import { 
+  loginUser, 
+  registerLecturerOrStaff, 
+  registerStudent,
+  type StudentRegistrationResponse,
+  type LecturerRegistrationResponse,
+  type StaffRegistrationResponse
+} from '../services/auth'
 import { rotateVoterQr } from '../services/voterQr'
 import { useVotingSession } from '../hooks/useVotingSession'
-import { fetchFacultiesPrograms, type FacultyProgram } from '../services/meta'
+import { 
+  fetchFacultiesPrograms, 
+  fetchLecturerUnits,
+  fetchLecturerPositions,
+  fetchStaffUnits,
+  fetchStaffPositions,
+  type FacultyProgram 
+} from '../services/meta'
 import type { ApiError } from '../utils/apiClient'
 import '../styles/LoginMahasiswa.css'
 
@@ -33,8 +47,12 @@ const Register = (): JSX.Element => {
   const [error, setError] = useState<string | null>(null)
 
   const [studentForm, setStudentForm] = useState({ nim: '', name: '', email: '', password: '', program: '', semester: '', faculty: '' })
-  const [staffForm, setStaffForm] = useState({ username: '', name: '', email: '', password: '', program: '', semester: '', faculty: '' })
+  const [staffForm, setStaffForm] = useState({ username: '', name: '', email: '', password: '', program: '', semester: '', faculty: '', position: '' })
   const [metaOptions, setMetaOptions] = useState<FacultyProgram[]>([])
+  const [lecturerUnits, setLecturerUnits] = useState<string[]>([])
+  const [lecturerPositions, setLecturerPositions] = useState<string[]>([])
+  const [staffUnits, setStaffUnits] = useState<string[]>([])
+  const [staffPositions, setStaffPositions] = useState<string[]>([])
 
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [qrDataUri, setQrDataUri] = useState<string | null>(null)
@@ -63,6 +81,24 @@ const Register = (): JSX.Element => {
     fetchFacultiesPrograms()
       .then((res) => setMetaOptions(res.faculties ?? []))
       .catch(() => setMetaOptions([]))
+    
+    // Load master data for lecturers
+    fetchLecturerUnits()
+      .then((res) => setLecturerUnits(res.data.map(u => u.name)))
+      .catch(() => setLecturerUnits([]))
+    
+    fetchLecturerPositions()
+      .then((res) => setLecturerPositions(res.data.map(p => p.name)))
+      .catch(() => setLecturerPositions([]))
+    
+    // Load master data for staff
+    fetchStaffUnits()
+      .then((res) => setStaffUnits(res.data.map(u => u.name)))
+      .catch(() => setStaffUnits([]))
+    
+    fetchStaffPositions()
+      .then((res) => setStaffPositions(res.data.map(p => p.name)))
+      .catch(() => setStaffPositions([]))
   }, [])
 
   useEffect(() => {
@@ -75,9 +111,16 @@ const Register = (): JSX.Element => {
     }
   }, [qrToken])
 
-  const canSubmit = agree && !loading && (role === 'student' ? studentForm.password.length >= 6 : staffForm.password.length >= 6)
+  const canSubmit = agree && !loading && (role === 'student' ? 
+    (studentForm.password.length >= 6 && studentForm.faculty && studentForm.program && studentForm.semester) : 
+    (staffForm.password.length >= 6 && staffForm.position)
+  )
 
-  const handleRegisterSuccess = async (resp: RegisterResponse, username: string, password: string) => {
+  const handleRegisterSuccess = async (
+    resp: StudentRegistrationResponse | LecturerRegistrationResponse | StaffRegistrationResponse, 
+    username: string, 
+    password: string
+  ) => {
     setLastIdentity({ username, mode, voterId: resp.user.voter_id ?? undefined })
     // auto login to fetch QR / set session
     try {
@@ -143,9 +186,10 @@ const Register = (): JSX.Element => {
           email: staffForm.email.trim() || undefined,
           password: staffForm.password,
           type,
-          faculty_name: staffForm.faculty.trim(),
+          faculty_name: role === 'lecturer' ? staffForm.faculty.trim() : undefined,
           department_name: role === 'lecturer' ? staffForm.program.trim() : undefined,
           unit_name: role === 'staff' ? staffForm.program.trim() : undefined,
+          position: staffForm.position.trim(),
           voting_mode: mode === 'tps' ? 'TPS' : 'ONLINE',
         })
         await handleRegisterSuccess(res, staffForm.username.trim(), staffForm.password)
@@ -311,7 +355,7 @@ const Register = (): JSX.Element => {
                 onClick={() => {
                   setRole('student')
                   setStudentForm({ nim: '', name: '', email: '', password: '', program: '', semester: '', faculty: '' })
-                  setStaffForm({ username: '', name: '', email: '', password: '', program: '', semester: '', faculty: '' })
+                  setStaffForm({ username: '', name: '', email: '', password: '', program: '', semester: '', faculty: '', position: '' })
                 }}
               >
                 Mahasiswa
@@ -322,7 +366,7 @@ const Register = (): JSX.Element => {
                 onClick={() => {
                   setRole('lecturer')
                   setStudentForm({ nim: '', name: '', email: '', password: '', program: '', semester: '', faculty: '' })
-                  setStaffForm({ username: '', name: '', email: '', password: '', program: '', semester: '', faculty: '' })
+                  setStaffForm({ username: '', name: '', email: '', password: '', program: '', semester: '', faculty: '', position: '' })
                 }}
               >
                 Dosen
@@ -333,7 +377,7 @@ const Register = (): JSX.Element => {
                 onClick={() => {
                   setRole('staff')
                   setStudentForm({ nim: '', name: '', email: '', password: '', program: '', semester: '', faculty: '' })
-                  setStaffForm({ username: '', name: '', email: '', password: '', program: '', semester: '', faculty: '' })
+                  setStaffForm({ username: '', name: '', email: '', password: '', program: '', semester: '', faculty: '', position: '' })
                 }}
               >
                 Staf
@@ -411,28 +455,66 @@ const Register = (): JSX.Element => {
                       <span className="field-label">{role === 'lecturer' ? 'NIDN (username)' : 'NIP/NIY (username)'}</span>
                       <input value={staffForm.username} onChange={(e) => setStaffForm((prev) => ({ ...prev, username: e.target.value }))} required />
                     </label>
-                    <label className="form-field">
-                      <span className="field-label">Fakultas / Unit</span>
-                      <select value={staffForm.faculty} onChange={(e) => setStaffForm((prev) => ({ ...prev, faculty: e.target.value, program: '' }))}>
-                        <option value="">Pilih Fakultas/Unit</option>
-                        {facultyOptions.map((fac) => (
-                          <option key={fac} value={fac}>
-                            {fac}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="form-field">
-                      <span className="field-label">{selectedProgramLabel}</span>
-                      <select value={staffForm.program} onChange={(e) => setStaffForm((prev) => ({ ...prev, program: e.target.value }))} disabled={!staffForm.faculty}>
-                        <option value="">{staffForm.faculty ? 'Pilih Program/Unit' : 'Pilih fakultas dahulu'}</option>
-                        {programOptions.map((prog) => (
-                          <option key={prog} value={prog}>
-                            {prog}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    {role === 'lecturer' ? (
+                      <>
+                        <label className="form-field">
+                          <span className="field-label">Fakultas</span>
+                          <select value={staffForm.faculty} onChange={(e) => setStaffForm((prev) => ({ ...prev, faculty: e.target.value, program: '' }))}>
+                            <option value="">Pilih Fakultas</option>
+                            {lecturerUnits.map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="form-field">
+                          <span className="field-label">Departemen</span>
+                          <input 
+                            value={staffForm.program} 
+                            onChange={(e) => setStaffForm((prev) => ({ ...prev, program: e.target.value }))} 
+                            placeholder="Contoh: Teknik Informatika"
+                            required
+                          />
+                        </label>
+                        <label className="form-field">
+                          <span className="field-label">Jabatan</span>
+                          <select value={staffForm.position} onChange={(e) => setStaffForm((prev) => ({ ...prev, position: e.target.value }))} required>
+                            <option value="">Pilih Jabatan</option>
+                            {lecturerPositions.map((pos) => (
+                              <option key={pos} value={pos}>
+                                {pos}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </>
+                    ) : (
+                      <>
+                        <label className="form-field">
+                          <span className="field-label">Unit</span>
+                          <select value={staffForm.program} onChange={(e) => setStaffForm((prev) => ({ ...prev, program: e.target.value }))} required>
+                            <option value="">Pilih Unit</option>
+                            {staffUnits.map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="form-field">
+                          <span className="field-label">Jabatan</span>
+                          <select value={staffForm.position} onChange={(e) => setStaffForm((prev) => ({ ...prev, position: e.target.value }))} required>
+                            <option value="">Pilih Jabatan</option>
+                            {staffPositions.map((pos) => (
+                              <option key={pos} value={pos}>
+                                {pos}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </>
+                    )}
                     <p className="microcopy">Gunakan data sesuai sistem akademik kampus.</p>
                   </>
                 )}
