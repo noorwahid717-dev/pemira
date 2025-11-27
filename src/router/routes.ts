@@ -40,6 +40,7 @@ import AdminDPTList from '../pages/AdminDPTList'
 import AdminDPTImport from '../pages/AdminDPTImport'
 import AdminDPTDetail from '../pages/AdminDPTDetail'
 import AdminDPTEdit from '../pages/AdminDPTEdit'
+import AdminDPTAdd from '../pages/AdminDPTAdd'
 import AdminUserManagement from '../pages/AdminUserManagement'
 import Panduan from '../pages/Panduan'
 import AdminFlowGuide from '../pages/AdminFlowGuide'
@@ -99,6 +100,7 @@ export const appRoutes: RouteDefinition[] = [
   { id: 'admin-tps-detail', path: '/admin/tps/:id', Component: AdminTPSDetail, requiresAdminAuth: true },
   { id: 'admin-dpt-list', path: '/admin/dpt', Component: AdminDPTList, requiresAdminAuth: true },
   { id: 'admin-dpt-import', path: '/admin/dpt/import', Component: AdminDPTImport, requiresAdminAuth: true },
+  { id: 'admin-dpt-add', path: '/admin/dpt/tambah', Component: AdminDPTAdd, requiresAdminAuth: true },
   { id: 'admin-dpt-edit', path: '/admin/dpt/:id/edit', Component: AdminDPTEdit, requiresAdminAuth: true },
   { id: 'admin-dpt-detail', path: '/admin/dpt/:id', Component: AdminDPTDetail, requiresAdminAuth: true },
   { id: 'admin-users', path: '/admin/users', Component: AdminUserManagement, requiresAdminAuth: true },

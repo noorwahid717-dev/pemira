@@ -220,6 +220,9 @@ const AdminDPTList = (): JSX.Element => {
             <p>Kelola data pemilih sah PEMIRA UNIWA, termasuk status hak suara.</p>
           </div>
           <div className="header-actions">
+            <button className="btn-primary" type="button" onClick={() => navigate('/admin/dpt/tambah')}>
+              + Tambah Pemilih
+            </button>
             <button className="btn-outline" type="button" onClick={() => navigate('/admin/dpt/import')}>
               + Import DPT
             </button>
