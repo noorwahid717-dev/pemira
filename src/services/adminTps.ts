@@ -120,18 +120,20 @@ export const fetchAdminTpsDetail = async (token: string, id: string, electionId:
 
 export const createAdminTps = async (token: string, payload: TPSAdmin, electionId: number | null = getActiveElectionId()): Promise<TPSAdmin> => {
   const body = buildBody(payload)
-  const response = await apiRequest<AdminTpsDTO>('/admin/tps', {
+  const response = await apiRequest<any>('/admin/tps', {
     method: 'POST',
     token,
     body: { ...body, election_id: electionId ?? getActiveElectionId(), is_active: payload.status === 'active' },
   })
-  return mapTps(response)
+  const data = (response?.data ?? response) as AdminTpsDTO
+  return mapTps(data)
 }
 
 export const updateAdminTps = async (token: string, id: string, payload: TPSAdmin, electionId: number | null = getActiveElectionId()): Promise<TPSAdmin> => {
   const body = { ...buildBody(payload), is_active: payload.status === 'active' }
-  const response = await apiRequest<AdminTpsDTO>(withElectionQuery(`/admin/tps/${id}`, electionId), { method: 'PUT', token, body })
-  return mapTps(response)
+  const response = await apiRequest<any>(withElectionQuery(`/admin/tps/${id}`, electionId), { method: 'PUT', token, body })
+  const data = (response?.data ?? response) as AdminTpsDTO
+  return mapTps(data)
 }
 
 export const deleteAdminTps = async (token: string, id: string, electionId: number | null = getActiveElectionId()): Promise<void> => {
