@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
-import type { PublicElection } from '../services/publicElection'
+import { fetchPublicPhases, type PublicElection, type PublicPhase } from '../services/publicElection'
+import { getActiveElectionId } from '../state/activeElection'
 import '../styles/HeroSection.css'
 
 type Props = {
@@ -19,6 +20,27 @@ type CountdownState = {
   target: Date
 }
 
+type PhaseKey = 'REGISTRATION' | 'VERIFICATION' | 'CAMPAIGN' | 'QUIET_PERIOD' | 'VOTING' | 'RECAP'
+
+type TimelinePhase = {
+  key: PhaseKey
+  label: string
+  start?: string | null
+  end?: string | null
+  status: 'active' | 'upcoming' | 'completed'
+}
+
+const PHASE_ORDER: PhaseKey[] = ['REGISTRATION', 'VERIFICATION', 'CAMPAIGN', 'QUIET_PERIOD', 'VOTING', 'RECAP']
+
+const PHASE_META: Record<PhaseKey, string> = {
+  REGISTRATION: 'Pendaftaran',
+  VERIFICATION: 'Verifikasi Berkas',
+  CAMPAIGN: 'Kampanye',
+  QUIET_PERIOD: 'Masa Tenang',
+  VOTING: 'Voting',
+  RECAP: 'Rekapitulasi',
+}
+
 const statusLabelMap: Record<string, string> = {
   DRAFT: 'Pemilu disiapkan',
   REGISTRATION: 'Pendaftaran pemilih',
@@ -35,6 +57,15 @@ const statusLabelMap: Record<string, string> = {
   ARCHIVED: 'Arsip',
 }
 
+const normalizePhaseKey = (value?: string | null): PhaseKey | null => {
+  if (!value) return null
+  const normalized = value.toString().trim().replace(/-/g, '_').toUpperCase()
+  if (normalized === 'QUIET') return 'QUIET_PERIOD'
+  if (normalized === 'RECAPITULATION') return 'RECAP'
+  if ((PHASE_ORDER as string[]).includes(normalized)) return normalized as PhaseKey
+  return null
+}
+
 const parseDate = (value?: string | null) => {
   if (!value) return null
   const date = new Date(value)
@@ -42,29 +73,47 @@ const parseDate = (value?: string | null) => {
   return date
 }
 
-const resolveTargetDate = (election?: PublicElection | null): Date => {
+const determineStatus = (start?: string | null, end?: string | null): 'active' | 'upcoming' | 'completed' => {
+  const now = Date.now()
+  const startTime = start ? new Date(start).getTime() : Number.NaN
+  const endTime = end ? new Date(end).getTime() : Number.NaN
+
+  if (!Number.isNaN(startTime) && now < startTime) return 'upcoming'
+  if (!Number.isNaN(startTime) && Number.isNaN(endTime) && now >= startTime) return 'active'
+  if (!Number.isNaN(startTime) && !Number.isNaN(endTime) && now >= startTime && now <= endTime) return 'active'
+  if (!Number.isNaN(endTime) && now > endTime) return 'completed'
+  return 'upcoming'
+}
+
+const buildTimeline = (phases: PublicPhase[]): TimelinePhase[] => {
+  const lookup = new Map<PhaseKey, PublicPhase>()
+  phases.forEach((phase) => {
+    const key = normalizePhaseKey(phase.key ?? phase.phase)
+    if (key) lookup.set(key, phase)
+  })
+
+  return PHASE_ORDER.map((key) => {
+    const source = lookup.get(key)
+    const start = (source as any)?.start_at ?? (source as any)?.startAt ?? (source as any)?.start ?? null
+    const end = (source as any)?.end_at ?? (source as any)?.endAt ?? (source as any)?.end ?? null
+    return {
+      key,
+      label: source?.label ?? (source as any)?.name ?? PHASE_META[key],
+      start,
+      end,
+      status: determineStatus(start, end),
+    }
+  })
+}
+
+const resolveTargetDate = (election?: PublicElection | null, phases?: TimelinePhase[]): Date => {
   const now = Date.now()
   
-  // Get phases from backend (now returns correct phases based on schedule)
-  const phases = (election as any)?.phases as
-    | Array<{ phase?: string; key?: string; start_at?: string | null; end_at?: string | null }>
-    | undefined
-  
-  let votingStart: Date | null = null
-  let votingEnd: Date | null = null
-  
-  if (phases?.length) {
-    const votingPhase = phases.find((item) => {
-      const key = (item.phase || item.key || '').toString().toLowerCase()
-      return ['voting', 'voting_dibuka'].includes(key)
-    })
-    
-    if (votingPhase) {
-      votingStart = parseDate(votingPhase.start_at ?? (votingPhase as any).startAt)
-      votingEnd = parseDate(votingPhase.end_at ?? (votingPhase as any).endAt)
-    }
-  }
-  
+  const votingPhase = phases?.find((item) => item.key === 'VOTING')
+
+  let votingStart: Date | null = votingPhase ? parseDate(votingPhase.start) : null
+  let votingEnd: Date | null = votingPhase ? parseDate(votingPhase.end) : null
+
   // Fallback to election voting dates
   if (!votingStart) votingStart = parseDate(election?.voting_start_at)
   if (!votingEnd) votingEnd = parseDate(election?.voting_end_at)
@@ -77,6 +126,19 @@ const resolveTargetDate = (election?: PublicElection | null): Date => {
   
   // After voting or no dates: fallback
   return parseDate(FALLBACK_VOTING_DATE) ?? new Date('2026-01-01T00:00:00Z')
+}
+
+const formatPhaseRange = (start?: string | null, end?: string | null): string => {
+  const format = (value?: string | null) => {
+    if (!value) return ''
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return ''
+    return parsed.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  }
+  const startLabel = format(start)
+  const endLabel = format(end)
+  if (startLabel && endLabel) return `${startLabel} - ${endLabel}`
+  return startLabel || endLabel || 'Jadwal belum ditentukan'
 }
 
 const buildCountdown = (target: Date): CountdownState => {
@@ -105,25 +167,10 @@ const HeroSection = ({ election, loading = false, error }: Props): JSX.Element =
   // Use current_phase from backend (calculated) instead of status
   const effectivePhase = election?.current_phase ?? election?.status
   const statusLabel = loading ? 'Memuat status...' : hasElection ? statusLabelMap[effectivePhase ?? ''] ?? 'Pemilu aktif' : 'Belum ada pemilu aktif'
-  const votingPhase = useMemo(() => {
-    const phases = (election as any)?.phases as
-      | Array<{ phase?: string; key?: string; start_at?: string | null; end_at?: string | null }>
-      | undefined
-    if (!phases?.length) return undefined
-    const match = phases.find((item) => {
-      const key = (item.phase || item.key || '').toString().toLowerCase()
-      return ['voting', 'voting_dibuka'].includes(key)
-    })
-    return match
-  }, [election])
-  const startDate = useMemo(
-    () => parseDate(votingPhase?.start_at ?? (votingPhase as any)?.startAt ?? election?.voting_start_at),
-    [election?.voting_start_at, votingPhase],
-  )
-  const endDate = useMemo(
-    () => parseDate(votingPhase?.end_at ?? (votingPhase as any)?.endAt ?? election?.voting_end_at),
-    [election?.voting_end_at, votingPhase],
-  )
+  const [timelinePhases, setTimelinePhases] = useState<TimelinePhase[]>(() => buildTimeline([]))
+  const votingPhase = useMemo(() => timelinePhases.find((phase) => phase.key === 'VOTING'), [timelinePhases])
+  const startDate = useMemo(() => parseDate(votingPhase?.start ?? election?.voting_start_at), [election?.voting_start_at, votingPhase])
+  const endDate = useMemo(() => parseDate(votingPhase?.end ?? election?.voting_end_at), [election?.voting_end_at, votingPhase])
   const now = Date.now()
   const startMs = startDate?.getTime()
   const endMs = endDate?.getTime()
@@ -145,7 +192,7 @@ const HeroSection = ({ election, loading = false, error }: Props): JSX.Element =
   const subtitle = 'Sistem pemilu kampus yang aman, rahasia, dan mudah digunakan oleh seluruh mahasiswa, dosen, dan staf UNIWA.'
   const friendlyError =
     !loading && error && !isNoActiveElectionError ? 'Data jadwal belum dapat dimuat. Panitia sedang memperbarui informasi.' : null
-  const targetDate = useMemo(() => resolveTargetDate(election), [election])
+  const targetDate = useMemo(() => resolveTargetDate(election, timelinePhases), [election, timelinePhases])
   const [countdown, setCountdown] = useState<CountdownState>(() => buildCountdown(targetDate))
 
   useEffect(() => {
@@ -178,6 +225,35 @@ const HeroSection = ({ election, loading = false, error }: Props): JSX.Element =
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [targetDate])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const isAbortError = (err: unknown) => (err as any)?.name === 'AbortError'
+    const loadPhases = async () => {
+      try {
+        const electionId = election?.id ?? getActiveElectionId()
+        if (!electionId) return
+        const phasesResponse = await fetchPublicPhases(electionId, { signal: controller.signal }).catch(() => election?.phases ?? [])
+        let phases = Array.isArray(phasesResponse) && phasesResponse.length > 0 ? phasesResponse : election?.phases ?? []
+
+        if ((!phases || phases.length === 0) && getActiveElectionId() && getActiveElectionId() !== electionId) {
+          const fallback = await fetchPublicPhases(getActiveElectionId(), { signal: controller.signal }).catch(() => [])
+          if (fallback && fallback.length > 0) {
+            phases = fallback
+          }
+        }
+
+        setTimelinePhases(buildTimeline(phases))
+      } catch (err) {
+        if (isAbortError(err) || controller.signal.aborted) return
+        // keep silent fail, will show fallback text
+      }
+    }
+
+    void loadPhases()
+
+    return () => controller.abort()
+  }, [election])
 
   const targetLabel = useMemo(
     () => targetDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
@@ -267,48 +343,18 @@ const HeroSection = ({ election, loading = false, error }: Props): JSX.Element =
             <div className="election-timeline">
               <h3 className="timeline-title">Tahapan Pemilihan</h3>
               <div className="timeline-phases">
-                <div className="timeline-phase active">
-                  <div className="phase-dot"></div>
-                  <div className="phase-content">
-                    <h4 className="phase-title">Pendaftaran</h4>
-                    <p className="phase-desc">01/11/2025 - 30/11/2025</p>
-                  </div>
-                </div>
-                <div className="timeline-phase upcoming">
-                  <div className="phase-dot"></div>
-                  <div className="phase-content">
-                    <h4 className="phase-title">Verifikasi Berkas</h4>
-                    <p className="phase-desc">01/12/2025 - 07/12/2025</p>
-                  </div>
-                </div>
-                <div className="timeline-phase upcoming">
-                  <div className="phase-dot"></div>
-                  <div className="phase-content">
-                    <h4 className="phase-title">Kampanye</h4>
-                    <p className="phase-desc">08/12/2025 - 10/12/2025</p>
-                  </div>
-                </div>
-                <div className="timeline-phase upcoming">
-                  <div className="phase-dot"></div>
-                  <div className="phase-content">
-                    <h4 className="phase-title">Masa Tenang</h4>
-                    <p className="phase-desc">11/12/2025 - 14/12/2025</p>
-                  </div>
-                </div>
-                <div className="timeline-phase upcoming">
-                  <div className="phase-dot"></div>
-                  <div className="phase-content">
-                    <h4 className="phase-title">Voting</h4>
-                    <p className="phase-desc">15/12/2025 - 17/12/2025</p>
-                  </div>
-                </div>
-                <div className="timeline-phase upcoming">
-                  <div className="phase-dot"></div>
-                  <div className="phase-content">
-                    <h4 className="phase-title">Rekapitulasi</h4>
-                    <p className="phase-desc">21/12/2025 - 22/12/2025</p>
-                  </div>
-                </div>
+                {timelinePhases.map((phase) => {
+                  const stateClass = phase.status === 'active' ? 'active' : phase.status === 'completed' ? 'completed' : 'upcoming'
+                  return (
+                    <div key={phase.key} className={`timeline-phase ${stateClass}`}>
+                      <div className="phase-dot"></div>
+                      <div className="phase-content">
+                        <h4 className="phase-title">{phase.label}</h4>
+                        <p className="phase-desc">{formatPhaseRange(phase.start, phase.end)}</p>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </div>

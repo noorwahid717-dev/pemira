@@ -440,6 +440,11 @@
   border-color: #667eea;
 }
 
+.timeline-phase.completed .phase-dot {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
 .timeline-phase.upcoming .phase-dot {
   background: white;
   border-color: #cbd5e0;
@@ -461,6 +466,10 @@
   color: #667eea;
 }
 
+.timeline-phase.completed .phase-title {
+  color: #15803d;
+}
+
 .phase-desc {
   font-size: 0.875rem;
   color: #64748b;
@@ -469,4 +478,8 @@
 
 .timeline-phase.active .phase-desc {
   color: #475569;
+}
+
+.timeline-phase.completed .phase-desc {
+  color: #166534;
 }

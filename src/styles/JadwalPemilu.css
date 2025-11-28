@@ -36,6 +36,16 @@
     margin-bottom: 2rem;
 }
 
+.timeline-info {
+    margin: 0 0 1rem 0;
+    color: #475569;
+    font-weight: 600;
+}
+
+.timeline-info.error {
+    color: #b91c1c;
+}
+
 .timeline-phases {
     display: flex;
     flex-direction: column;

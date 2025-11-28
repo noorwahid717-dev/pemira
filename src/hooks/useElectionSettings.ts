@@ -58,29 +58,41 @@ const mapModeToFlags = (mode: VotingMode) => {
   return { online_enabled: true, tps_enabled: false }
 }
 
-const phaseToTimelineId: Record<string, TimelineStage['id']> = {
-  registration: 'pendaftaran',
-  verification: 'pemeriksaan',
-  campaign: 'kampanye',
-  quiet: 'masa_tenang',
-  quiet_period: 'masa_tenang',
-  voting: 'voting_dibuka',
-  recap: 'rekapitulasi',
+type PhaseKey = ElectionPhase['key']
+
+const phaseKeyToTimelineId: Record<string, TimelineStage['id']> = {
+  REGISTRATION: 'pendaftaran',
+  VERIFICATION: 'pemeriksaan',
+  CAMPAIGN: 'kampanye',
+  QUIET_PERIOD: 'masa_tenang',
+  QUIET: 'masa_tenang',
+  VOTING: 'voting_dibuka',
+  RECAP: 'rekapitulasi',
 }
 
-const timelineIdToPhase: Record<TimelineStage['id'], ElectionPhase['phase']> = {
-  pendaftaran: 'registration',
-  pemeriksaan: 'verification',
-  verifikasi: 'verification',
-  kampanye: 'campaign',
-  masa_tenang: 'quiet',
-  voting_dibuka: 'voting',
-  voting: 'voting',
-  rekapitulasi: 'recap',
-  selesai: 'recap',
+const timelineIdToPhase: Record<TimelineStage['id'], PhaseKey> = {
+  pendaftaran: 'REGISTRATION',
+  pemeriksaan: 'VERIFICATION',
+  verifikasi: 'VERIFICATION',
+  kampanye: 'CAMPAIGN',
+  masa_tenang: 'QUIET_PERIOD',
+  voting_dibuka: 'VOTING',
+  voting: 'VOTING',
+  voting_ditutup: 'RECAP',
+  rekapitulasi: 'RECAP',
+  selesai: 'RECAP',
 }
 
-const normalizePhaseKey = (value?: string | null) => (value ? value.toLowerCase() : '')
+const phaseLabelByKey: Record<PhaseKey, string> = {
+  REGISTRATION: 'Pendaftaran',
+  VERIFICATION: 'Verifikasi Berkas',
+  CAMPAIGN: 'Kampanye',
+  QUIET_PERIOD: 'Masa Tenang',
+  VOTING: 'Voting',
+  RECAP: 'Rekapitulasi',
+}
+
+const normalizePhaseKey = (value?: string | null) => (value ? value.toString().trim().replace(/-/g, '_').toUpperCase() : '')
 
 const mapStatusFromApi = (status?: string): ElectionStatus => {
   switch ((status ?? '').toUpperCase()) {
@@ -186,8 +198,8 @@ export const useElectionSettings = () => {
     setTimeline((prev) =>
       prev.map((stage) => {
         const targetPhase = phases.find((item) => {
-          const key = normalizePhaseKey((item as any).phase ?? (item as any).key)
-          const mapped = phaseToTimelineId[key]
+          const key = normalizePhaseKey((item as any).key ?? (item as any).phase)
+          const mapped = phaseKeyToTimelineId[key]
           if (mapped === stage.id) return true
           return stage.id === 'verifikasi' && mapped === 'pemeriksaan'
         })
@@ -437,19 +449,20 @@ export const useElectionSettings = () => {
   }, [])
 
   const buildPhasesPayload = useCallback((): ElectionPhase[] => {
-    const phaseOrder: ElectionPhase['phase'][] = ['registration', 'verification', 'campaign', 'quiet', 'voting', 'recap']
-    const collected = new Map<ElectionPhase['phase'], ElectionPhase>()
+    const phaseOrder: PhaseKey[] = ['REGISTRATION', 'VERIFICATION', 'CAMPAIGN', 'QUIET_PERIOD', 'VOTING', 'RECAP']
+    const collected = new Map<PhaseKey, ElectionPhase>()
 
     timeline.forEach((stage) => {
       const phaseKey = timelineIdToPhase[stage.id]
       if (!phaseKey) return
-      const existing = collected.get(phaseKey) ?? { phase: phaseKey }
+      const existing = collected.get(phaseKey) ?? { key: phaseKey }
       if (stage.start) existing.start_at = toIsoOrNull(stage.start)
       if (stage.end) existing.end_at = toIsoOrNull(stage.end)
+      existing.label = stage.label || phaseLabelByKey[phaseKey]
       collected.set(phaseKey, existing)
     })
 
-    return phaseOrder.map((phase) => collected.get(phase) ?? { phase, start_at: null, end_at: null })
+    return phaseOrder.map((phase) => collected.get(phase) ?? { key: phase, label: phaseLabelByKey[phase], start_at: null, end_at: null })
   }, [timeline])
 
   const saveSection = useCallback(async (section: string, callback: () => Promise<void> | void) => {
@@ -500,7 +513,7 @@ export const useElectionSettings = () => {
   const saveTimeline = useCallback(async () => {
     await saveSection('timeline', async () => {
       if (!token) return
-       const electionId = resolveElectionId()
+      const electionId = resolveElectionId()
       const phasesPayload = buildPhasesPayload()
       const updatedPhases = await updateElectionPhases(token, phasesPayload, electionId)
       setTimelineFromPhases(updatedPhases)

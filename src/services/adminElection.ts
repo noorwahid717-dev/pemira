@@ -62,7 +62,10 @@ export type AdminElectionCreatePayload = {
 }
 
 export type ElectionPhase = {
-  phase: 'registration' | 'verification' | 'campaign' | 'quiet' | 'voting' | 'recap'
+  key: 'REGISTRATION' | 'VERIFICATION' | 'CAMPAIGN' | 'QUIET_PERIOD' | 'VOTING' | 'RECAP'
+  label?: string
+  // Legacy field kept for backward compatibility with older API payloads
+  phase?: 'registration' | 'verification' | 'campaign' | 'quiet' | 'voting' | 'recap'
   start_at?: string | null
   end_at?: string | null
 }

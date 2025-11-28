@@ -35,8 +35,19 @@ export type PublicPhase = {
   key?: string
   phase?: string
   label?: string
+  name?: string
+  title?: string
   start_at?: string | null
   end_at?: string | null
+}
+
+const unwrapElection = (payload: any): PublicElection | null => {
+  if (!payload) return null
+  if (payload.election) return payload.election as PublicElection
+  if (payload.data?.election) return payload.data.election as PublicElection
+  if (payload.data && !payload.data.items) return payload.data as PublicElection
+  if (payload.data?.data && !payload.data.data.items) return payload.data.data as PublicElection
+  return null
 }
 
 const unwrapList = (payload: any): PublicElection[] | null => {
@@ -80,11 +91,15 @@ const fetchElectionListFallback = async (signal?: AbortSignal): Promise<PublicEl
 export const fetchCurrentElection = async (options?: { signal?: AbortSignal }): Promise<PublicElection> => {
   const signal = options?.signal
   try {
-    return await apiRequest<PublicElection>('/elections/current', { signal })
+    const res = await apiRequest<PublicElection | { data?: PublicElection } | { election?: PublicElection } | { data?: { election?: PublicElection } }>('/elections/current', { signal })
+    return unwrapElection(res) ?? (res as PublicElection)
   } catch (err: any) {
     if (err?.status === 404) {
       try {
-        return await apiRequest<PublicElection>('/elections/current', { signal })
+        const res = await apiRequest<PublicElection | { data?: PublicElection } | { election?: PublicElection } | { data?: { election?: PublicElection } }>('/elections/current', {
+          signal,
+        })
+        return unwrapElection(res) ?? (res as PublicElection)
       } catch (legacyErr: any) {
         if (legacyErr?.status === 404) {
           try {
@@ -102,17 +117,49 @@ export const fetchCurrentElection = async (options?: { signal?: AbortSignal }): 
   }
 }
 
+const normalizePhaseKey = (value?: string | null) => (value ? value.toString().trim().replace(/-/g, '_').toUpperCase() : '')
+
+const stageIdToPhaseKey: Record<string, string> = {
+  REGISTRATION: 'REGISTRATION',
+  VERIFICATION: 'VERIFICATION',
+  CAMPAIGN: 'CAMPAIGN',
+  SILENCE: 'QUIET_PERIOD',
+  QUIET: 'QUIET_PERIOD',
+  QUIET_PERIOD: 'QUIET_PERIOD',
+  VOTING: 'VOTING',
+  REKAPITULASI: 'RECAP',
+  RECAP: 'RECAP',
+}
+
+const mapStagesToPhases = (stages: any[]): PublicPhase[] =>
+  stages.map((stage) => {
+    const key = stageIdToPhaseKey[normalizePhaseKey(stage.id ?? stage.key ?? stage.phase)] ?? stage.key ?? stage.phase
+    const start_at = stage.start_at ?? stage.startAt ?? stage.start ?? null
+    const end_at = stage.end_at ?? stage.endAt ?? stage.end ?? null
+    return {
+      key,
+      label: stage.name ?? stage.label ?? stage.title,
+      start_at,
+      end_at,
+    }
+  })
+
 export const fetchPublicPhases = async (electionId: number, options?: { signal?: AbortSignal }): Promise<PublicPhase[]> => {
   const { signal } = options ?? {}
   const response = await apiRequest<any>(`/elections/${electionId}/phases`, { signal }).catch(() => apiRequest<any>(`/elections/${electionId}/timeline`, { signal }))
-  const items = Array.isArray(response?.data?.phases)
-    ? response.data.phases
-    : Array.isArray(response?.phases)
-      ? response.phases
-      : Array.isArray(response?.items)
-        ? response.items
-        : Array.isArray(response)
-          ? response
-          : []
-  return items as PublicPhase[]
+  const payload =
+    (Array.isArray(response?.data?.phases) && response.data.phases) ||
+    (Array.isArray(response?.phases) && response.phases) ||
+    (Array.isArray(response?.items) && response.items) ||
+    (Array.isArray(response?.data?.items) && response.data.items) ||
+    (Array.isArray(response?.data?.data) && response.data.data) ||
+    (Array.isArray(response?.election?.phases) && response.election.phases) ||
+    (Array.isArray(response?.data?.election?.phases) && response.data.election.phases) ||
+    (Array.isArray(response?.data) && response.data) ||
+    (Array.isArray(response?.stages) && mapStagesToPhases(response.stages)) ||
+    (Array.isArray(response?.data?.stages) && mapStagesToPhases(response.data.stages)) ||
+    (Array.isArray(response) && response) ||
+    []
+
+  return payload as PublicPhase[]
 }

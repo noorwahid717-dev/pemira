@@ -1,9 +1,129 @@
-import type { JSX } from 'react'
+import { useEffect, useMemo, useState, type JSX } from 'react'
 import Header from '../components/Header'
-import { formatIndonesianDateTime } from '../utils/dateUtils'
+import { fetchCurrentElection, fetchPublicPhases, type PublicPhase } from '../services/publicElection'
+import { getActiveElectionId } from '../state/activeElection'
 import '../styles/JadwalPemilu.css'
 
+type PhaseKey = 'REGISTRATION' | 'VERIFICATION' | 'CAMPAIGN' | 'QUIET_PERIOD' | 'VOTING' | 'RECAP'
+
+type TimelinePhase = {
+    key: PhaseKey
+    label: string
+    description: string
+    start?: string | null
+    end?: string | null
+    status: 'active' | 'upcoming' | 'completed'
+}
+
+const PHASE_ORDER: PhaseKey[] = ['REGISTRATION', 'VERIFICATION', 'CAMPAIGN', 'QUIET_PERIOD', 'VOTING', 'RECAP']
+
+const PHASE_META: Record<PhaseKey, { label: string; description: string }> = {
+    REGISTRATION: { label: 'Pendaftaran', description: 'Pendaftaran pemilu untuk mahasiswa, dosen, dan staf UNIWA' },
+    VERIFICATION: { label: 'Verifikasi Berkas', description: 'Verifikasi dokumen dan berkas pemilu' },
+    CAMPAIGN: { label: 'Kampanye', description: 'Periode kampanye kandidat' },
+    QUIET_PERIOD: { label: 'Masa Tenang', description: 'Masa tenang sebelum pemungutan suara' },
+    VOTING: { label: 'Voting', description: 'Proses pemungutan suara online' },
+    RECAP: { label: 'Rekapitulasi', description: 'Pengumuman hasil akhir pemilihan' },
+}
+
+const normalizePhaseKey = (value?: string | null): PhaseKey | null => {
+    if (!value) return null
+    const normalized = value.toString().trim().replace(/-/g, '_').toUpperCase()
+    if (normalized === 'QUIET') return 'QUIET_PERIOD'
+    if (normalized === 'RECAPITULATION') return 'RECAP'
+    if ((PHASE_ORDER as string[]).includes(normalized)) return normalized as PhaseKey
+    return null
+}
+
+const determineStatus = (start?: string | null, end?: string | null): 'active' | 'upcoming' | 'completed' => {
+    const now = Date.now()
+    const startTime = start ? new Date(start).getTime() : Number.NaN
+    const endTime = end ? new Date(end).getTime() : Number.NaN
+
+    if (!Number.isNaN(startTime) && now < startTime) return 'upcoming'
+    if (!Number.isNaN(startTime) && Number.isNaN(endTime) && now >= startTime) return 'active'
+    if (!Number.isNaN(startTime) && !Number.isNaN(endTime) && now >= startTime && now <= endTime) return 'active'
+    if (!Number.isNaN(endTime) && now > endTime) return 'completed'
+    return 'upcoming'
+}
+
+const formatPhaseDate = (value?: string | null): string => {
+    if (!value) return 'Belum ditentukan'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return 'Belum ditentukan'
+    const datePart = parsed.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const timePart = parsed.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false })
+    return `${datePart}, pukul ${timePart}`
+}
+
+const buildTimeline = (phases: PublicPhase[]): TimelinePhase[] => {
+    const lookup = new Map<PhaseKey, PublicPhase>()
+    phases.forEach((phase) => {
+        const key = normalizePhaseKey(phase.key ?? phase.phase)
+        if (key) lookup.set(key, phase)
+    })
+
+    return PHASE_ORDER.map((key) => {
+        const source = lookup.get(key)
+        const start = (source as any)?.start_at ?? (source as any)?.startAt ?? (source as any)?.start ?? null
+        const end = (source as any)?.end_at ?? (source as any)?.endAt ?? (source as any)?.end ?? null
+        return {
+            key,
+            label: source?.label ?? (source as any)?.name ?? PHASE_META[key].label,
+            description: PHASE_META[key].description,
+            start,
+            end,
+            status: determineStatus(start, end),
+        }
+    })
+}
+
 const JadwalPemilu = (): JSX.Element => {
+    const [timelinePhases, setTimelinePhases] = useState<TimelinePhase[]>(() => buildTimeline([]))
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        const isAbortError = (err: unknown) => (err as any)?.name === 'AbortError'
+        let isMounted = true
+        const controller = new AbortController()
+        const load = async () => {
+            try {
+                const election = await fetchCurrentElection({ signal: controller.signal })
+                const phasesResponse = await fetchPublicPhases(election.id, { signal: controller.signal }).catch(() => election?.phases ?? [])
+                const fallbackElectionId = getActiveElectionId()
+                let phases = Array.isArray(phasesResponse) && phasesResponse.length > 0 ? phasesResponse : election?.phases ?? []
+
+                if ((!phases || phases.length === 0) && fallbackElectionId && fallbackElectionId !== election.id) {
+                    const fallbackPhases = await fetchPublicPhases(fallbackElectionId, { signal: controller.signal }).catch(() => [])
+                    if (fallbackPhases && fallbackPhases.length > 0) {
+                        phases = fallbackPhases
+                    }
+                }
+
+                if (!isMounted) return
+                setTimelinePhases(buildTimeline(phases ?? []))
+                setError(null)
+            } catch (err) {
+                if (isAbortError(err) || controller.signal.aborted || !isMounted) return
+                console.error('Gagal memuat jadwal pemilu', err)
+                setError('Gagal memuat jadwal pemilu. Silakan coba lagi.')
+                setTimelinePhases(buildTimeline([]))
+            } finally {
+                if (isMounted && !controller.signal.aborted) setLoading(false)
+            }
+        }
+
+        void load()
+
+        return () => {
+            isMounted = false
+            controller.abort()
+        }
+    }, [])
+
+    const hasAtLeastOneSchedule = useMemo(() => timelinePhases.some((phase) => phase.start || phase.end), [timelinePhases])
+
     return (
         <div className="jadwal-pemilu-page">
             <Header />
@@ -17,126 +137,34 @@ const JadwalPemilu = (): JSX.Element => {
                 </div>
 
                 <div className="jadwal-timeline">
+                    {loading && <p className="timeline-info">Memuat jadwal pemilu...</p>}
+                    {!loading && error && <p className="timeline-info error">{error}</p>}
+                    {!loading && !error && !hasAtLeastOneSchedule && <p className="timeline-info">Jadwal pemilu belum ditentukan.</p>}
                     <div className="timeline-phases">
-                        <div className="timeline-phase active">
-                            <div className="phase-dot"></div>
-                            <div className="phase-content">
-                                <h3 className="phase-title">Pendaftaran</h3>
-                                <p className="phase-desc">Pendaftaran pemilu untuk mahasiswa, dosen, dan staf UNIWA</p>
-                                <div className="phase-dates">
-                                    <div className="date-range">
-                                        <div className="date-item">
-                                            <span className="date-label">Mulai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('01/11/2025, 08.00')}</span>
-                                        </div>
-                                        <div className="date-item">
-                                            <span className="date-label">Selesai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('30/11/2025, 16.00')}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="timeline-phase upcoming">
-                            <div className="phase-dot"></div>
-                            <div className="phase-content">
-                                <h3 className="phase-title">Verifikasi Berkas</h3>
-                                <p className="phase-desc">Verifikasi dokumen dan berkas pemilu</p>
-                                <div className="phase-dates">
-                                    <div className="date-range">
-                                        <div className="date-item">
-                                            <span className="date-label">Mulai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('01/12/2025, 08.00')}</span>
-                                        </div>
-                                        <div className="date-item">
-                                            <span className="date-label">Selesai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('07/12/2025, 18.00')}</span>
+                        {timelinePhases.map((phase) => (
+                            <div
+                                key={phase.key}
+                                className={`timeline-phase ${phase.status === 'active' ? 'active' : phase.status === 'upcoming' ? 'upcoming' : ''}`}
+                            >
+                                <div className="phase-dot"></div>
+                                <div className="phase-content">
+                                    <h3 className="phase-title">{phase.label}</h3>
+                                    <p className="phase-desc">{phase.description}</p>
+                                    <div className="phase-dates">
+                                        <div className="date-range">
+                                            <div className="date-item">
+                                                <span className="date-label">Mulai:</span>
+                                                <span className="date-value">{formatPhaseDate(phase.start)}</span>
+                                            </div>
+                                            <div className="date-item">
+                                                <span className="date-label">Selesai:</span>
+                                                <span className="date-value">{formatPhaseDate(phase.end)}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <div className="timeline-phase upcoming">
-                            <div className="phase-dot"></div>
-                            <div className="phase-content">
-                                <h3 className="phase-title">Kampanye</h3>
-                                <p className="phase-desc">Periode kampanye kandidat</p>
-                                <div className="phase-dates">
-                                    <div className="date-range">
-                                        <div className="date-item">
-                                            <span className="date-label">Mulai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('08/12/2025, 08.00')}</span>
-                                        </div>
-                                        <div className="date-item">
-                                            <span className="date-label">Selesai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('10/12/2025, 20.00')}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="timeline-phase upcoming">
-                            <div className="phase-dot"></div>
-                            <div className="phase-content">
-                                <h3 className="phase-title">Masa Tenang</h3>
-                                <p className="phase-desc">Masa tenang sebelum pemungutan suara</p>
-                                <div className="phase-dates">
-                                    <div className="date-range">
-                                        <div className="date-item">
-                                            <span className="date-label">Mulai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('11/12/2025, 00.00')}</span>
-                                        </div>
-                                        <div className="date-item">
-                                            <span className="date-label">Selesai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('14/12/2025, 23.59')}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="timeline-phase upcoming">
-                            <div className="phase-dot"></div>
-                            <div className="phase-content">
-                                <h3 className="phase-title">Voting</h3>
-                                <p className="phase-desc">Proses pemungutan suara online</p>
-                                <div className="phase-dates">
-                                    <div className="date-range">
-                                        <div className="date-item">
-                                            <span className="date-label">Mulai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('15/12/2025, 06.25')}</span>
-                                        </div>
-                                        <div className="date-item">
-                                            <span className="date-label">Selesai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('17/12/2025, 19.48')}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="timeline-phase upcoming">
-                            <div className="phase-dot"></div>
-                            <div className="phase-content">
-                                <h3 className="phase-title">Rekapitulasi</h3>
-                                <p className="phase-desc">Pengumuman hasil akhir pemilihan</p>
-                                <div className="phase-dates">
-                                    <div className="date-range">
-                                        <div className="date-item">
-                                            <span className="date-label">Mulai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('21/12/2025, 08.00')}</span>
-                                        </div>
-                                        <div className="date-item">
-                                            <span className="date-label">Selesai:</span>
-                                            <span className="date-value">{formatIndonesianDateTime('22/12/2025, 17.00')}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
 
