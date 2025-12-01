@@ -11,10 +11,17 @@ export type VoterQRResult = {
   created_at: string
 }
 
-export const getVoterQr = (token: string, voterId: number) => {
+export const getVoterQr = async (token: string, voterId: number) => {
   const electionId = getActiveElectionId()
   const params = new URLSearchParams({ election_id: String(electionId) })
-  return apiRequest<VoterQRResult>(`/voters/${voterId}/tps/qr?${params.toString()}`, { token })
+  const url = `/voters/${voterId}/tps/qr?${params.toString()}`
+  
+  const response = await apiRequest<any>(url, { token })
+  
+  // Handle wrapped response
+  const qrData = response.data || response
+  
+  return qrData as VoterQRResult
 }
 
 export const rotateVoterQr = (token: string, voterId: number) => {

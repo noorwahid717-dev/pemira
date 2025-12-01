@@ -86,9 +86,11 @@ export type ParticipationStats = {
 
 export const fetchCompleteProfile = async (
   token: string,
+  electionId: number,
   options?: { signal?: AbortSignal }
 ): Promise<VoterCompleteProfile> => {
-  const response = await apiRequest<any>('/voters/me/complete-profile', {
+  const params = new URLSearchParams({ election_id: String(electionId) })
+  const response = await apiRequest<any>(`/voters/me/complete-profile?${params.toString()}`, {
     method: 'GET',
     token,
     signal: options?.signal,
@@ -150,9 +152,16 @@ export const updateVotingMethod = async (
 
 export const fetchParticipationStats = async (
   token: string,
+  electionId?: number,
   options?: { signal?: AbortSignal }
 ): Promise<ParticipationStats> => {
-  const response = await apiRequest<any>('/voters/me/participation-stats', {
+  let url = '/voters/me/participation-stats'
+  if (electionId) {
+    const params = new URLSearchParams({ election_id: String(electionId) })
+    url = `${url}?${params.toString()}`
+  }
+  
+  const response = await apiRequest<any>(url, {
     method: 'GET',
     token,
     signal: options?.signal,

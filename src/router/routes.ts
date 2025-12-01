@@ -46,6 +46,7 @@ import Panduan from '../pages/Panduan'
 import AdminFlowGuide from '../pages/AdminFlowGuide'
 import JadwalPemilu from '../pages/JadwalPemilu'
 import Tentang from '../pages/Tentang'
+import ContactPanitia from '../pages/ContactPanitia'
 
 export type RouteDefinition = {
   id: string
@@ -106,6 +107,7 @@ export const appRoutes: RouteDefinition[] = [
   { id: 'admin-users', path: '/admin/users', Component: AdminUserManagement, requiresAdminAuth: true },
   { id: 'jadwal-pemilu', path: '/jadwal', Component: JadwalPemilu },
   { id: 'tentang', path: '/tentang', Component: Tentang },
+  { id: 'kontak-panitia', path: '/kontak', Component: ContactPanitia },
 ]
 
 export const fallbackRoute: RouteDefinition = {

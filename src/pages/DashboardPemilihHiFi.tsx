@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVotingSession } from '../hooks/useVotingSession'
 import { useDashboardPemilih, type PemiraStage } from '../hooks/useDashboardPemilih'
 import { LucideIcon, type IconName } from '../components/LucideIcon'
+import { QRCodeSVG } from 'qrcode.react'
 import '../styles/DashboardPemilihHiFi.css'
 
 type VoterMode = 'ONLINE' | 'OFFLINE'
@@ -79,7 +80,7 @@ const formatStageRange = (start?: string | null, end?: string | null): string | 
 
 const DashboardPemilihHiFi = (): JSX.Element => {
   const navigate = useNavigate()
-  const { session, mahasiswa } = useVotingSession()
+  const { session, mahasiswa, clearSession } = useVotingSession()
   const dashboardData = useDashboardPemilih(session?.accessToken || null)
 
   const currentStage = dashboardData.currentStage
@@ -91,8 +92,8 @@ const DashboardPemilihHiFi = (): JSX.Element => {
     return {
       nama: dashboardData.user?.profile?.name || mahasiswa?.nama || 'Pemilih',
       nim: dashboardData.user?.username || mahasiswa?.nim || '-',
-      mode: status?.preferred_method === 'TPS' ? 'OFFLINE' : 'ONLINE',
-      status: status?.has_voted ? 'VOTED' : 'NOT_VOTED',
+      mode: (status?.preferred_method === 'TPS' ? 'OFFLINE' : 'ONLINE') as VoterMode,
+      status: (status?.has_voted ? 'VOTED' : 'NOT_VOTED') as VoterStatus,
       qrCode: qr?.qr_token || '',
       qrId: qr?.qr_token?.substring(0, 10) || '-',
     }
@@ -249,16 +250,56 @@ const DashboardPemilihHiFi = (): JSX.Element => {
       return
     }
     
-    // Create a simple text file with QR token for now
-    // In production, you should generate actual QR code image
-    const qrText = `PEMIRA UNIWA - QR Code Pemilih\n\nID: ${voterData.qrId}\nToken: ${voterData.qrCode}\n\nTunjukkan kode ini di TPS`
-    const blob = new Blob([qrText], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `qr-pemilih-${voterData.qrId}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
+    // Find the QR code SVG element (check all possible locations)
+    const qrElement = document.getElementById('qr-code-voting-panel') 
+      || document.getElementById('qr-code-mode-panel')
+      || document.getElementById('qr-code-registration-panel')
+    
+    if (!qrElement) {
+      alert('QR Code belum di-render')
+      return
+    }
+
+    // Create a canvas to convert SVG to image
+    const svg = qrElement as unknown as SVGSVGElement
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // Get SVG dimensions
+    const bbox = svg.getBBox()
+    canvas.width = bbox.width + 40 // Add padding
+    canvas.height = bbox.height + 40
+
+    // Create image from SVG
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+    const url = URL.createObjectURL(svgBlob)
+    
+    const img = new Image()
+    img.onload = () => {
+      // Draw white background
+      ctx.fillStyle = 'white'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      
+      // Draw QR code
+      ctx.drawImage(img, 20, 20)
+      
+      // Convert canvas to blob and download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const downloadUrl = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = downloadUrl
+          a.download = `qr-pemilih-${voterData.qrId}.png`
+          a.click()
+          URL.revokeObjectURL(downloadUrl)
+        }
+      }, 'image/png')
+      
+      URL.revokeObjectURL(url)
+    }
+    img.src = url
   }
 
   const handlePrintQR = () => {
@@ -327,10 +368,18 @@ const DashboardPemilihHiFi = (): JSX.Element => {
                 <div className="qr-code-box">
                   <div className="qr-placeholder">
                     {voterData.qrCode ? (
-                      <div style={{ padding: '20px', background: 'white', fontSize: '10px', wordBreak: 'break-all', fontFamily: 'monospace' }}>
-                        {voterData.qrCode}
+                      <QRCodeSVG 
+                        value={voterData.qrCode} 
+                        size={256}
+                        level="H"
+                        includeMargin={true}
+                        id="qr-code-voting-panel"
+                      />
+                    ) : (
+                      <div style={{ padding: '20px', background: '#f0f0f0', color: '#999' }}>
+                        [QR CODE TIDAK TERSEDIA]
                       </div>
-                    ) : '[QR CODE]'}
+                    )}
                   </div>
                   <div className="qr-id">ID: {voterData.qrId}</div>
                 </div>
@@ -377,6 +426,47 @@ const DashboardPemilihHiFi = (): JSX.Element => {
         )
 
       default:
+        // For registration phase, show QR for TPS voters
+        if (currentStage === 'registration' && voterData.mode === 'OFFLINE' && voterData.qrCode) {
+          return (
+            <div className="main-panel voting-panel offline">
+              <LucideIcon name="fileCheck" className="panel-icon" size={64} />
+              <h2>Anda Terdaftar sebagai Pemilih TPS</h2>
+              <p>Anda terdaftar sebagai <strong>PEMILIH OFFLINE (TPS)</strong>.</p>
+              <p>QR Code Anda sudah siap! Simpan QR code ini untuk digunakan saat voting nanti.</p>
+              
+              <div className="qr-display">
+                <p className="qr-label">QR Code Pendaftaran Anda:</p>
+                <div className="qr-code-box">
+                  <div className="qr-placeholder">
+                    <QRCodeSVG 
+                      value={voterData.qrCode} 
+                      size={256}
+                      level="H"
+                      includeMargin={true}
+                      id="qr-code-registration-panel"
+                    />
+                  </div>
+                  <div className="qr-id">ID: {voterData.qrId}</div>
+                </div>
+              </div>
+
+              <div className="qr-actions">
+                <button className="btn-secondary" onClick={handleDownloadQR}>
+                  <LucideIcon name="download" className="btn-icon" size={20} /> Unduh QR
+                </button>
+                <button className="btn-secondary" onClick={handlePrintQR}>
+                  <LucideIcon name="printer" className="btn-icon" size={20} /> Cetak QR
+                </button>
+              </div>
+              
+              <p style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
+                💡 Tip: Simpan atau cetak QR code ini sekarang. Anda akan membutuhkannya saat datang ke TPS untuk voting.
+              </p>
+            </div>
+          )
+        }
+        
         return (
           <div className="main-panel default-panel">
             <LucideIcon name="info" className="panel-icon" size={64} />
@@ -443,10 +533,18 @@ const DashboardPemilihHiFi = (): JSX.Element => {
             <div className="qr-code-display">
               <div className="qr-placeholder-small">
                 {voterData.qrCode ? (
-                  <div style={{ padding: '10px', background: 'white', fontSize: '8px', wordBreak: 'break-all', fontFamily: 'monospace' }}>
-                    {voterData.qrCode}
+                  <QRCodeSVG 
+                    value={voterData.qrCode} 
+                    size={180}
+                    level="H"
+                    includeMargin={true}
+                    id="qr-code-mode-panel"
+                  />
+                ) : (
+                  <div style={{ padding: '10px', background: '#f0f0f0', color: '#999' }}>
+                    [QR CODE TIDAK TERSEDIA]
                   </div>
-                ) : '[QR CODE]'}
+                )}
               </div>
               <div className="qr-info">
                 <span className="qr-id-label">ID:</span>
@@ -477,11 +575,55 @@ const DashboardPemilihHiFi = (): JSX.Element => {
   }
 
   if (dashboardData.error) {
+    // Check if error is token-related
+    const isTokenError = dashboardData.error && (
+      dashboardData.error.toLowerCase().includes('token') || 
+      dashboardData.error.toLowerCase().includes('unauthorized') ||
+      dashboardData.error.toLowerCase().includes('401')
+    )
+    
     return (
-      <div className="dashboard-pemilih-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>
-          <p>Error: {dashboardData.error}</p>
-          <button onClick={() => window.location.reload()}>Muat Ulang</button>
+      <div className="dashboard-pemilih-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: '18px', marginBottom: '10px' }}>⚠️ Error: {dashboardData.error}</p>
+          {isTokenError && (
+            <p style={{ color: '#dc3545', marginBottom: '20px' }}>
+              Sesi Anda telah berakhir. Silakan login kembali.
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+            {!isTokenError && (
+              <button 
+                onClick={() => window.location.reload()}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Muat Ulang
+              </button>
+            )}
+            <button 
+              onClick={() => {
+                clearSession()
+                navigate('/login', { replace: true })
+              }}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: isTokenError ? '#dc3545' : '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              {isTokenError ? 'Login Ulang' : 'Logout'}
+            </button>
+          </div>
         </div>
       </div>
     )

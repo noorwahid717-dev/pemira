@@ -8,6 +8,7 @@ const navLinks = [
   { href: '/panduan', label: 'Panduan' },
   { href: '/jadwal', label: 'Jadwal' },
   { href: '/tentang', label: 'Tentang' },
+  { href: '/kontak', label: 'Kontak Panitia' },
 ]
 
 const Header = (): JSX.Element => {

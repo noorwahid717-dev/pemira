@@ -1,19 +1,29 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVotingSession } from '../hooks/useVotingSession'
+import { getActiveElectionId } from '../state/activeElection'
 import {
   fetchCompleteProfile,
   updateProfile,
   changePassword,
-  updateVotingMethod,
   fetchParticipationStats,
   type VoterCompleteProfile,
   type ParticipationStats,
 } from '../services/voterProfile'
+import {
+  fetchFaculties,
+  fetchStudyPrograms,
+  fetchLecturerUnits,
+  fetchLecturerPositions,
+  fetchStaffUnits,
+  fetchStaffPositions,
+  type Faculty,
+  type StudyProgram,
+} from '../services/meta'
 import { LucideIcon } from '../components/LucideIcon'
 import '../styles/VoterProfile.css'
 
-const VoterProfile = (): JSX.Element => {
+const VoterProfile = () => {
   const navigate = useNavigate()
   const { session, clearSession } = useVotingSession()
   
@@ -32,6 +42,14 @@ const VoterProfile = (): JSX.Element => {
   const [editClassLabel, setEditClassLabel] = useState('')
   const [saving, setSaving] = useState(false)
   
+  // Master data for dropdowns
+  const [faculties, setFaculties] = useState<Faculty[]>([])
+  const [programs, setPrograms] = useState<StudyProgram[]>([])
+  const [lecturerUnits, setLecturerUnits] = useState<string[]>([])
+  const [lecturerPositions, setLecturerPositions] = useState<string[]>([])
+  const [staffUnits, setStaffUnits] = useState<string[]>([])
+  const [staffPositions, setStaffPositions] = useState<string[]>([])
+  
   // Password change states
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -42,6 +60,33 @@ const VoterProfile = (): JSX.Element => {
   // Notification state
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
+  // Load master data for dropdowns
+  useEffect(() => {
+    fetchFaculties()
+      .then((res) => setFaculties(res.data ?? []))
+      .catch(() => setFaculties([]))
+    
+    fetchStudyPrograms()
+      .then((res) => setPrograms(res.data ?? []))
+      .catch(() => setPrograms([]))
+    
+    fetchLecturerUnits()
+      .then((res) => setLecturerUnits(res.data.map(u => u.name)))
+      .catch(() => setLecturerUnits([]))
+    
+    fetchLecturerPositions()
+      .then((res) => setLecturerPositions(res.data.map(p => p.name)))
+      .catch(() => setLecturerPositions([]))
+    
+    fetchStaffUnits()
+      .then((res) => setStaffUnits(res.data.map(u => u.name)))
+      .catch(() => setStaffUnits([]))
+    
+    fetchStaffPositions()
+      .then((res) => setStaffPositions(res.data.map(p => p.name)))
+      .catch(() => setStaffPositions([]))
+  }, [])
+
   useEffect(() => {
     if (!session?.accessToken) {
       setLoading(false)
@@ -49,10 +94,11 @@ const VoterProfile = (): JSX.Element => {
     }
 
     const controller = new AbortController()
+    const electionId = getActiveElectionId()
     
     Promise.all([
-      fetchCompleteProfile(session.accessToken, { signal: controller.signal }),
-      fetchParticipationStats(session.accessToken, { signal: controller.signal }).catch(() => null)
+      fetchCompleteProfile(session.accessToken, electionId, { signal: controller.signal }),
+      fetchParticipationStats(session.accessToken, electionId, { signal: controller.signal }).catch(() => null)
     ])
       .then(([profileData, statsData]) => {
         console.log('Profile data received:', profileData)
@@ -96,7 +142,7 @@ const VoterProfile = (): JSX.Element => {
       .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [session?.accessToken])
+  }, [session?.accessToken, session?.user.role])
 
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message })
@@ -145,7 +191,8 @@ const VoterProfile = (): JSX.Element => {
       const result = await updateProfile(session.accessToken, payload)
       
       // Refresh profile
-      const updatedProfile = await fetchCompleteProfile(session.accessToken)
+      const electionId = getActiveElectionId()
+      const updatedProfile = await fetchCompleteProfile(session.accessToken, electionId)
       setProfile(updatedProfile)
       setIsEditMode(false)
       
@@ -219,12 +266,40 @@ const VoterProfile = (): JSX.Element => {
   }
 
   if (error || !profile) {
+    // If error contains "token" or "unauthorized", auto logout
+    const isTokenError = error && (
+      error.toLowerCase().includes('token') || 
+      error.toLowerCase().includes('unauthorized') ||
+      error.toLowerCase().includes('401')
+    )
+    
     return (
       <div className="voter-profile-page">
         <div className="profile-error">
           <span className="error-icon">⚠️</span>
           <p>{error || 'Gagal memuat profil'}</p>
-          <button className="btn-back" onClick={handleBack}>Kembali</button>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+            <button className="btn-back" onClick={handleBack}>Kembali</button>
+            {isTokenError && (
+              <button 
+                className="btn-logout" 
+                onClick={() => {
+                  clearSession()
+                  navigate('/login', { replace: true })
+                }}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Logout Paksa
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -328,10 +403,16 @@ const VoterProfile = (): JSX.Element => {
                   </div>
                 )}
                 
-                {personal_info.semester && (
+                {(personal_info.semester || personal_info.cohort_year) && (
                   <div className="info-item">
                     <span className="info-label">Semester</span>
-                    <span className="info-value">{personal_info.semester}</span>
+                    <span className="info-value">
+                      {personal_info.semester || 
+                       (personal_info.cohort_year 
+                         ? `${Math.max(1, (new Date().getFullYear() - personal_info.cohort_year) * 2 + 1)}`
+                         : '-'
+                       )}
+                    </span>
                   </div>
                 )}
               </>
@@ -449,37 +530,133 @@ const VoterProfile = (): JSX.Element => {
         {isEditMode && (
           <section className="info-section">
             <h3 className="section-title">
-              <LucideIcon name="idCard" className="section-icon" size={20} />
+              <LucideIcon name="user" className="section-icon" size={20} />
               Informasi Identitas (Opsional)
             </h3>
             
             <div className="edit-form">
-              <div className="form-group">
-                <label className="form-label">Kode Fakultas/Unit</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={editFacultyCode}
-                  onChange={(e) => setEditFacultyCode(e.target.value)}
-                  placeholder="Contoh: FTI, BAU"
-                />
-                <span className="form-hint">Kode fakultas atau unit kerja</span>
-              </div>
+              {isStudent && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Fakultas</label>
+                    <select
+                      className="form-input"
+                      value={editFacultyCode}
+                      onChange={(e) => {
+                        setEditFacultyCode(e.target.value)
+                        setEditProgramCode('') // Reset program when faculty changes
+                      }}
+                    >
+                      <option value="">Pilih Fakultas</option>
+                      {faculties.map((fac) => (
+                        <option key={fac.code} value={fac.code}>
+                          {fac.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="form-hint">Fakultas tempat Anda kuliah</span>
+                  </div>
 
-              {(isStudent || isLecturer) && (
-                <div className="form-group">
-                  <label className="form-label">Kode Program Studi/Departemen</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={editProgramCode}
-                    onChange={(e) => setEditProgramCode(e.target.value)}
-                    placeholder="Contoh: IF, SI, Informatika"
-                  />
-                  <span className="form-hint">
-                    {isStudent ? 'Kode program studi' : 'Kode departemen'}
-                  </span>
-                </div>
+                  <div className="form-group">
+                    <label className="form-label">Program Studi</label>
+                    <select
+                      className="form-input"
+                      value={editProgramCode}
+                      onChange={(e) => setEditProgramCode(e.target.value)}
+                      disabled={!editFacultyCode}
+                    >
+                      <option value="">Pilih Program Studi</option>
+                      {editFacultyCode &&
+                        programs
+                          .filter((prog) => {
+                            const faculty = faculties.find((f) => f.code === editFacultyCode)
+                            return faculty && prog.faculty_id === faculty.id
+                          })
+                          .map((prog) => (
+                            <option key={prog.code} value={prog.code}>
+                              {prog.name}
+                            </option>
+                          ))}
+                    </select>
+                    <span className="form-hint">Program studi Anda</span>
+                  </div>
+                </>
+              )}
+
+              {isLecturer && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Unit Kerja</label>
+                    <select
+                      className="form-input"
+                      value={editFacultyCode}
+                      onChange={(e) => setEditFacultyCode(e.target.value)}
+                    >
+                      <option value="">Pilih Unit Kerja</option>
+                      {lecturerUnits.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {unit}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="form-hint">Unit kerja dosen</span>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Departemen/Prodi</label>
+                    <select
+                      className="form-input"
+                      value={editProgramCode}
+                      onChange={(e) => setEditProgramCode(e.target.value)}
+                    >
+                      <option value="">Pilih Departemen/Prodi</option>
+                      {lecturerPositions.map((pos) => (
+                        <option key={pos} value={pos}>
+                          {pos}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="form-hint">Departemen atau prodi tempat mengajar</span>
+                  </div>
+                </>
+              )}
+
+              {isStaff && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Unit Kerja</label>
+                    <select
+                      className="form-input"
+                      value={editFacultyCode}
+                      onChange={(e) => setEditFacultyCode(e.target.value)}
+                    >
+                      <option value="">Pilih Unit Kerja</option>
+                      {staffUnits.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {unit}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="form-hint">Unit kerja staf</span>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Posisi/Jabatan</label>
+                    <select
+                      className="form-input"
+                      value={editProgramCode}
+                      onChange={(e) => setEditProgramCode(e.target.value)}
+                    >
+                      <option value="">Pilih Posisi</option>
+                      {staffPositions.map((pos) => (
+                        <option key={pos} value={pos}>
+                          {pos}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="form-hint">Posisi atau jabatan</span>
+                  </div>
+                </>
               )}
 
               {isStudent && (

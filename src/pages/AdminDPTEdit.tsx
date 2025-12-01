@@ -72,7 +72,7 @@ const AdminDPTEdit = () => {
       }
     }
     void loadVoter()
-  }, [token, id])
+  }, [token, id, activeElectionId])
 
   const isAfterVote = voter?.statusSuara === 'sudah'
 
@@ -92,26 +92,26 @@ const AdminDPTEdit = () => {
       // Only include biodata fields if voter hasn't voted yet
       if (!isAfterVote) {
         updatePayload.name = formData.nama
-        updatePayload.email = formData.email
+        updatePayload.email = formData.email || undefined
         const facultyValue = formData.fakultas
         const programValue = formData.prodi
 
         // Align with registration form semantics:
-        // - mahasiswa: fakultas + program studi + semester
+        // - mahasiswa: fakultas + program studi + semester (as cohort_year)
         // - dosen: fakultas (unit) + departemen
         // - staf: unit kerja + detail unit
         if (formData.tipe === 'mahasiswa') {
           updatePayload.faculty_name = facultyValue
           updatePayload.study_program_name = programValue
-          updatePayload.semester = formData.semester ? parseInt(formData.semester) : undefined
+          updatePayload.cohort_year = formData.semester ? parseInt(formData.semester, 10) : undefined
         } else if (formData.tipe === 'dosen') {
           updatePayload.faculty_name = facultyValue
           updatePayload.study_program_name = programValue
-          updatePayload.semester = undefined
         } else if (formData.tipe === 'staf') {
           updatePayload.faculty_name = facultyValue
-          updatePayload.study_program_name = programValue
-          updatePayload.semester = undefined
+          if (programValue) {
+            updatePayload.study_program_name = programValue
+          }
         }
       }
 

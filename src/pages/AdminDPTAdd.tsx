@@ -15,7 +15,7 @@ const academicMap: Record<'aktif' | 'cuti' | 'nonaktif', string> = {
   nonaktif: 'INACTIVE',
 }
 
-const AdminDPTAdd = (): JSX.Element => {
+const AdminDPTAdd = () => {
   const navigate = useNavigate()
   const { token } = useAdminAuth()
   const { activeElectionId } = useActiveElection()
@@ -80,7 +80,7 @@ const AdminDPTAdd = (): JSX.Element => {
         voter_type: mapFrontendToApiVoterType(formData.tipe),
         nim: formData.nim.trim(),
         name: formData.nama.trim(),
-        email: formData.email.trim(),
+        email: formData.email.trim() || undefined,
         voting_method: votingMethod,
         status: formData.electionVoterStatus,
       }
@@ -88,14 +88,18 @@ const AdminDPTAdd = (): JSX.Element => {
       if (formData.tipe === 'mahasiswa') {
         payload.faculty_name = formData.fakultas.trim()
         payload.study_program_name = formData.prodi.trim()
-        payload.semester = formData.semester ? parseInt(formData.semester, 10) : undefined
+        if (formData.semester) {
+          payload.cohort_year = parseInt(formData.semester, 10)
+        }
         payload.academic_status = academicMap[formData.akademik]
       } else if (formData.tipe === 'dosen') {
         payload.faculty_name = formData.fakultas.trim()
         payload.study_program_name = formData.prodi.trim()
       } else if (formData.tipe === 'staf') {
         payload.faculty_name = formData.fakultas.trim()
-        payload.study_program_name = formData.prodi.trim()
+        if (formData.prodi.trim()) {
+          payload.study_program_name = formData.prodi.trim()
+        }
       }
 
       await upsertVoter(token, payload, activeElectionId)
