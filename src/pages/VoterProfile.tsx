@@ -311,6 +311,16 @@ const VoterProfile = () => {
   const isStaff = personal_info.voter_type === 'STAFF'
   const lecturerDepartment = personal_info.department || personal_info.department_name
   const staffUnit = personal_info.unit || personal_info.unit_name || (isStaff ? personal_info.faculty_name : undefined)
+  const normalizedSemester = (() => {
+    const raw = personal_info.semester?.trim()
+    if (raw && raw !== '-') return raw
+    if (personal_info.cohort_year) {
+      const yearsDiff = new Date().getFullYear() - personal_info.cohort_year
+      const computed = Math.max(1, yearsDiff * 2 + 1)
+      return `${computed}`
+    }
+    return '-'
+  })()
 
   return (
     <div className="voter-profile-page">
@@ -403,18 +413,10 @@ const VoterProfile = () => {
                   </div>
                 )}
                 
-                {(personal_info.semester || personal_info.cohort_year) && (
-                  <div className="info-item">
-                    <span className="info-label">Semester</span>
-                    <span className="info-value">
-                      {personal_info.semester || 
-                       (personal_info.cohort_year 
-                         ? `${Math.max(1, (new Date().getFullYear() - personal_info.cohort_year) * 2 + 1)}`
-                         : '-'
-                       )}
-                    </span>
-                  </div>
-                )}
+                <div className="info-item">
+                  <span className="info-label">Semester</span>
+                  <span className="info-value">{normalizedSemester}</span>
+                </div>
               </>
             )}
             
