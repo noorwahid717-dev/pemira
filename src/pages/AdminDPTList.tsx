@@ -71,7 +71,9 @@ const AdminDPTList = (): JSX.Element => {
       const matchesStatus = filters.statusSuara === 'all' || voter.statusSuara === filters.statusSuara
       const matchesAkademik = filters.akademik === 'all' || voter.akademik === filters.akademik
       const matchesTipe = filters.tipe === 'all' || voter.tipe === filters.tipe
-      return matchesSearch && matchesFakultas && matchesAngkatan && matchesStatus && matchesAkademik && matchesTipe
+      const metode = (voter.metodeVoting ?? '').toString().toLowerCase()
+      const matchesMetode = filters.metode === 'all' || metode === filters.metode
+      return matchesSearch && matchesFakultas && matchesAngkatan && matchesStatus && matchesAkademik && matchesTipe && matchesMetode
     })
   }, [filters, voters])
 
@@ -287,6 +289,11 @@ const AdminDPTList = (): JSX.Element => {
             <option value="REJECTED">Ditolak</option>
             <option value="VOTED">Sudah Memilih</option>
             <option value="BLOCKED">Diblokir</option>
+          </select>
+          <select value={filters.metode} onChange={(event) => setFilters((prev) => ({ ...prev, metode: event.target.value as typeof filters.metode }))}>
+            <option value="all">Metode: Semua</option>
+            <option value="online">Online</option>
+            <option value="tps">TPS (Offline)</option>
           </select>
         </div>
 

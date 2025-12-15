@@ -25,10 +25,11 @@ const DPTAdminContext = createContext<{
     angkatan: string
     statusSuara: VoterStatus | 'all'
     akademik: AcademicStatus | 'all'
+    metode: 'all' | 'online' | 'tps'
     tipe: 'all' | 'mahasiswa' | 'dosen' | 'staf'
     electionVoterStatus: 'all' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'VOTED' | 'BLOCKED'
   }
-  setFilters: React.Dispatch<React.SetStateAction<{ search: string; fakultas: string; angkatan: string; statusSuara: VoterStatus | 'all'; akademik: AcademicStatus | 'all'; tipe: 'all' | 'mahasiswa' | 'dosen' | 'staf'; electionVoterStatus: 'all' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'VOTED' | 'BLOCKED' }>>
+  setFilters: React.Dispatch<React.SetStateAction<{ search: string; fakultas: string; angkatan: string; statusSuara: VoterStatus | 'all'; akademik: AcademicStatus | 'all'; metode: 'all' | 'online' | 'tps'; tipe: 'all' | 'mahasiswa' | 'dosen' | 'staf'; electionVoterStatus: 'all' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'VOTED' | 'BLOCKED' }>>
   selected: Set<string>
   toggleSelect: (id: string) => void
   selectAll: (ids: string[]) => void
@@ -60,6 +61,7 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
     angkatan: 'all',
     statusSuara: 'all' as VoterStatus | 'all',
     akademik: 'all' as AcademicStatus | 'all',
+    metode: 'all' as 'all' | 'online' | 'tps',
     tipe: 'all' as 'all' | 'mahasiswa' | 'dosen' | 'staf',
     electionVoterStatus: 'all' as 'all' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'VOTED' | 'BLOCKED',
   })
@@ -88,6 +90,9 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
       if (filters.electionVoterStatus !== 'all') {
         params.append('status', filters.electionVoterStatus)
       }
+      if (filters.metode !== 'all') {
+        params.append('voting_method', filters.metode === 'tps' ? 'TPS' : 'ONLINE')
+      }
       params.append('page', page.toString())
       params.append('limit', limit.toString())
 
@@ -112,7 +117,7 @@ export const DPTAdminProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     setPage(1)
-  }, [filters.fakultas, filters.angkatan, filters.search, filters.statusSuara, filters.akademik, filters.tipe, filters.electionVoterStatus, activeElectionId])
+  }, [filters.fakultas, filters.angkatan, filters.search, filters.statusSuara, filters.akademik, filters.metode, filters.tipe, filters.electionVoterStatus, activeElectionId])
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
