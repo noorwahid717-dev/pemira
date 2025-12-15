@@ -23,10 +23,14 @@ const isNumericId = (value?: string | number) => {
 }
 
 const statusLabels: Record<CandidateStatus, string> = {
+  DRAFT: 'Draft',
   PENDING: 'Menunggu Review',
+  PUBLISHED: 'Terpublikasi',
   APPROVED: 'Disetujui',
+  HIDDEN: 'Disembunyikan',
   REJECTED: 'Ditolak',
   WITHDRAWN: 'Ditarik',
+  ARCHIVED: 'Arsip',
 }
 
 type StepId = 'data' | 'profile' | 'vision' | 'program' | 'review'
@@ -601,10 +605,14 @@ const AdminCandidateForm = (): JSX.Element => {
                   <label>
                     Status Kandidat
                     <select value={formData.status} onChange={(event) => updateField('status', event.target.value as CandidateStatus)}>
-                      <option value="draft">Draft</option>
-                      <option value="active">Siap Publik</option>
-                      <option value="hidden">Disembunyikan</option>
-                      <option value="archived">Arsip</option>
+                      <option value="DRAFT">Draft</option>
+                      <option value="PENDING">Menunggu Review</option>
+                      <option value="PUBLISHED">Terpublikasi</option>
+                      <option value="APPROVED">Disetujui (Legacy)</option>
+                      <option value="HIDDEN">Disembunyikan</option>
+                      <option value="REJECTED">Ditolak</option>
+                      <option value="WITHDRAWN">Ditarik</option>
+                      <option value="ARCHIVED">Arsip</option>
                     </select>
                     {helperText('Atur ke Draft sampai siap dipublish.')}
                   </label>

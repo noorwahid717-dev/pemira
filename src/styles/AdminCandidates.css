@@ -134,9 +134,21 @@
   color: var(--admin-color-success-500, #16a34a);
 }
 
+.status-chip.PUBLISHED {
+  background: var(--admin-color-success-soft, #dcfce7);
+  color: var(--admin-color-success-500, #16a34a);
+}
+
 .status-chip.PENDING {
   background: var(--admin-color-warning-soft, #fef3c7);
   color: var(--admin-color-warning-500, #f59e0b);
+}
+
+.status-chip.DRAFT,
+.status-chip.HIDDEN,
+.status-chip.ARCHIVED {
+  background: var(--admin-color-neutral-200, #e5e7eb);
+  color: var(--admin-color-neutral-700, #374151);
 }
 
 .status-chip.REJECTED {

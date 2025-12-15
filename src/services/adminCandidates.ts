@@ -185,12 +185,39 @@ export const buildCandidatePayload = (candidate: CandidateAdmin, excludeStatus =
 }
 
 export const fetchAdminCandidates = async (token: string, electionId: number = getActiveElectionId()): Promise<CandidateAdmin[]> => {
-  const response = await apiRequest<any>(`/admin/elections/${electionId}/candidates`, {
-    token,
+  const unwrap = (payload: any) => payload?.data ?? payload
+  const extractItems = (payload: any): AdminCandidateResponse[] | null => {
+    const root = unwrap(payload)
+    if (Array.isArray(root?.items)) return root.items
+    if (Array.isArray(root)) return root
+    return null
+  }
+  const extractPagination = (payload: any) => {
+    const root = unwrap(payload)
+    return root?.pagination ?? null
+  }
+
+  const limit = 50
+  const baseParams = new URLSearchParams({ page: '1', limit: String(limit) })
+  const firstResponse = await apiRequest<any>(`/admin/elections/${electionId}/candidates?${baseParams.toString()}`, { token })
+  const firstItems = extractItems(firstResponse)
+  if (!firstItems) throw new Error('Invalid candidate list response')
+
+  const pagination = extractPagination(firstResponse)
+  const totalPages = Number(pagination?.total_pages ?? pagination?.totalPages ?? 1)
+
+  if (!Number.isFinite(totalPages) || totalPages <= 1) {
+    return firstItems.map(transformCandidateFromApi)
+  }
+
+  const pageFetches = Array.from({ length: totalPages - 1 }, (_, idx) => idx + 2).map((page) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    return apiRequest<any>(`/admin/elections/${electionId}/candidates?${params.toString()}`, { token })
   })
-  const items = Array.isArray(response?.data?.items) ? response.data.items : Array.isArray(response?.items) ? response.items : Array.isArray(response) ? response : null
-  if (!items) throw new Error('Invalid candidate list response')
-  return (items as AdminCandidateResponse[]).map(transformCandidateFromApi)
+
+  const remainingResponses = await Promise.all(pageFetches)
+  const remainingItems = remainingResponses.flatMap((resp) => extractItems(resp) ?? [])
+  return [...firstItems, ...remainingItems].map(transformCandidateFromApi)
 }
 
 export const createAdminCandidate = async (token: string, candidate: CandidateAdmin, electionId: number = getActiveElectionId()): Promise<CandidateAdmin> => {

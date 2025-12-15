@@ -49,12 +49,10 @@ const mapQrCode = (qr?: ApiCandidateQrCode | null): CandidateQrCode | null => {
 }
 
 export const fetchCandidateQrCodeMap = async (
-  token: string,
   electionId: number = getActiveElectionId(),
   options?: { signal?: AbortSignal },
 ): Promise<Record<string, CandidateQrCode>> => {
-  if (!token) throw new Error('Admin token diperlukan untuk memuat QR kandidat')
-  const response = await apiRequest<any>(`/admin/elections/${electionId}/candidates`, { token, signal: options?.signal })
+  const response = await apiRequest<any>(`/elections/${electionId}/qr-codes`, { signal: options?.signal })
   const items = parseCandidates(response)
   if (!items) throw new Error('Invalid candidates QR response')
 

@@ -13,10 +13,14 @@ import '../styles/AdminCandidates.css'
 
 const statusOptions: { value: CandidateStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Semua Status' },
+  { value: 'DRAFT', label: 'Draft' },
   { value: 'PENDING', label: 'Menunggu Review' },
-  { value: 'APPROVED', label: 'Disetujui' },
+  { value: 'PUBLISHED', label: 'Terpublikasi' },
+  { value: 'APPROVED', label: 'Disetujui (Legacy)' },
+  { value: 'HIDDEN', label: 'Disembunyikan' },
   { value: 'REJECTED', label: 'Ditolak' },
   { value: 'WITHDRAWN', label: 'Ditarik' },
+  { value: 'ARCHIVED', label: 'Arsip' },
 ]
 
 const AdminCandidatesList = (): JSX.Element => {
@@ -80,8 +84,7 @@ const AdminCandidatesList = (): JSX.Element => {
     setQrError(undefined)
     void (async () => {
       try {
-        if (!token) throw new Error('Admin token tidak tersedia')
-        const map = await fetchCandidateQrCodeMap(token, activeElectionId, { signal: controller.signal })
+        const map = await fetchCandidateQrCodeMap(activeElectionId, { signal: controller.signal })
         setQrCodes(map)
       } catch (err) {
         if ((err as any)?.name === 'AbortError') return
@@ -94,7 +97,7 @@ const AdminCandidatesList = (): JSX.Element => {
     })()
 
     return () => controller.abort()
-  }, [activeElectionId, token])
+  }, [activeElectionId])
 
   const facultyOptions = useMemo(() => {
     const faculties = Array.from(new Set(candidates.map((candidate) => candidate.faculty)))
@@ -105,8 +108,7 @@ const AdminCandidatesList = (): JSX.Element => {
     setQrLoading(true)
     setQrError(undefined)
     try {
-      if (!token) throw new Error('Admin token tidak tersedia')
-      const [, map] = await Promise.all([refresh(), fetchCandidateQrCodeMap(token, activeElectionId)])
+      const [, map] = await Promise.all([refresh(), fetchCandidateQrCodeMap(activeElectionId)])
       setQrCodes(map)
     } catch (err) {
       console.warn('Failed to refresh candidates or QR codes', err)
@@ -226,13 +228,21 @@ const AdminCandidatesList = (): JSX.Element => {
                     <td>{candidate.faculty}</td>
                     <td>
                       <span className={`status-chip ${candidate.status}`}>
-                        {candidate.status === 'APPROVED'
-                          ? 'Disetujui'
+                        {candidate.status === 'DRAFT'
+                          ? 'Draft'
                           : candidate.status === 'PENDING'
                             ? 'Menunggu Review'
-                            : candidate.status === 'REJECTED'
-                              ? 'Ditolak'
-                              : 'Ditarik'}
+                            : candidate.status === 'PUBLISHED'
+                              ? 'Terpublikasi'
+                              : candidate.status === 'APPROVED'
+                                ? 'Disetujui'
+                                : candidate.status === 'HIDDEN'
+                                  ? 'Disembunyikan'
+                                  : candidate.status === 'REJECTED'
+                                    ? 'Ditolak'
+                                    : candidate.status === 'WITHDRAWN'
+                                      ? 'Ditarik'
+                                      : 'Arsip'}
                       </span>
                     </td>
                     <td>
