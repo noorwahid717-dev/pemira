@@ -31,10 +31,31 @@ const VotingOnline = (): JSX.Element => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [votingResult, setVotingResult] = useState<VotingReceipt | null>(null)
   const sigCanvas = useRef<SignatureCanvas>(null)
+  const sigContainerRef = useRef<HTMLDivElement>(null)
+  const [canvasDimensions, setCanvasDimensions] = useState({ width: 500, height: 200 })
   const [isSigning, setIsSigning] = useState(false)
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loadingCandidates, setLoadingCandidates] = useState(true)
   const [countdownStr, setCountdownStr] = useState('--:--:--')
+
+  // Dynamically resize canvas to match container for proper touch coordinates
+  useEffect(() => {
+    const container = sigContainerRef.current
+    if (!container) return
+
+    const updateCanvasSize = () => {
+      const rect = container.getBoundingClientRect()
+      const width = Math.floor(rect.width)
+      const height = Math.min(200, Math.floor(width * 0.4)) // Maintain aspect ratio, max 200px
+      setCanvasDimensions({ width, height })
+    }
+
+    updateCanvasSize()
+    const resizeObserver = new ResizeObserver(updateCanvasSize)
+    resizeObserver.observe(container)
+
+    return () => resizeObserver.disconnect()
+  }, [step]) // Re-run when step changes to signature step
 
   // Use Dashboard logic for voter data and stage
   const currentStage = dashboardData.currentStage
@@ -436,15 +457,15 @@ const VotingOnline = (): JSX.Element => {
                       Silakan tanda tangan di bawah ini untuk memvalidasi suara Anda.
                     </p>
 
-                    <div className="signature-canvas-container" style={{ border: '2px dashed #ccc', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#fff' }}>
+                    <div ref={sigContainerRef} className="signature-canvas-container" style={{ border: '2px dashed #ccc', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#fff' }}>
                       <SignatureCanvas
                         ref={sigCanvas}
                         penColor="black"
                         canvasProps={{
-                          width: 500,
-                          height: 200,
+                          width: canvasDimensions.width,
+                          height: canvasDimensions.height,
                           className: 'sigCanvas',
-                          style: { width: '100%', height: '200px', display: 'block' }
+                          style: { width: '100%', height: `${canvasDimensions.height}px`, display: 'block', touchAction: 'none' }
                         }}
                       />
                     </div>
