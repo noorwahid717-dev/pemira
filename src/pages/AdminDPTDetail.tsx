@@ -5,12 +5,39 @@ import { useDPTAdminStore } from '../hooks/useDPTAdminStore'
 import { useToast } from '../components/Toast'
 import '../styles/AdminDPT.css'
 
+import { fetchAdminDptVoterById } from '../services/adminDpt'
+import { useAdminAuth } from '../hooks/useAdminAuth'
+import type { DPTEntry } from '../types/dptAdmin'
+
 const AdminDPTDetail = (): JSX.Element => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { voters } = useDPTAdminStore()
-  const voter = voters.find((entry) => entry.id === id)
+  const { token } = useAdminAuth()
+
+  // Initialize with cached data if available, but allow it to be updated
+  const cachedVoter = voters.find((entry) => entry.id === id)
+  const [voter, setVoter] = React.useState<DPTEntry | undefined>(cachedVoter)
+  const [loading, setLoading] = React.useState(false)
+
   const { showToast } = useToast()
+
+  // Fetch fresh data on mount
+  React.useEffect(() => {
+    if (!id || !token) return
+
+    setLoading(true)
+    fetchAdminDptVoterById(token, id)
+      .then((freshData) => {
+        if (freshData) {
+          setVoter(freshData)
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to refresh voter detail:', err)
+      })
+      .finally(() => setLoading(false))
+  }, [id, token])
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleResetStatus = () => {
@@ -24,7 +51,7 @@ const AdminDPTDetail = (): JSX.Element => {
     showToast.success('Pemilih berhasil dinonaktifkan.')
   }
 
-  if (!voter) {
+  if (!voter && !loading) {
     return (
       <AdminLayout title="Detail DPT">
         <div className="admin-dpt-page">
@@ -38,6 +65,21 @@ const AdminDPTDetail = (): JSX.Element => {
       </AdminLayout>
     )
   }
+
+  if (!voter && loading) {
+    return (
+      <AdminLayout title="Detail DPT">
+        <div className="admin-dpt-page">
+          <div className="loading-state card">
+            <p>Memuat data terbaru...</p>
+          </div>
+        </div>
+      </AdminLayout>
+    )
+  }
+
+  // Ensure types are safe before rendering
+  if (!voter) return null
 
   return (
     <AdminLayout title="Detail DPT">
@@ -65,7 +107,7 @@ const AdminDPTDetail = (): JSX.Element => {
           const programLabel = isMahasiswa ? 'Program Studi' : isDosen ? 'Departemen' : 'Bagian/Unit Detail'
           const facultyValue = isStaf ? (voter.fakultas || voter.prodi || '-') : voter.fakultas
           const programValue = isStaf ? (voter.prodi || voter.fakultas || '-') : voter.prodi
-          
+
           return (
             <section className="card">
               <h2>Data Personal</h2>
@@ -114,6 +156,14 @@ const AdminDPTDetail = (): JSX.Element => {
           {voter.waktuVoting && <p>Waktu Voting: {new Date(voter.waktuVoting).toLocaleString('id-ID')}</p>}
           {voter.metodeVoting.startsWith('TPS') && <p>TPS: {voter.metodeVoting}</p>}
           {voter.statusSuara === 'sudah' && <p>Token Hash: x81c-a91b-d33f</p>}
+          {voter.digitalSignature && (
+            <div className="mt-4 border-t pt-4">
+              <span className="block text-sm font-semibold text-gray-500 mb-2">Tanda Tangan Digital:</span>
+              <div className="p-2 border rounded bg-gray-50 inline-block">
+                <img src={voter.digitalSignature} alt="Digital Signature" className="max-h-24 w-auto" />
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="card warning">

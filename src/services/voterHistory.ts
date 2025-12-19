@@ -1,6 +1,6 @@
 import { apiRequest } from '../utils/apiClient'
 
-export type HistoryItemType = 
+export type HistoryItemType =
   | 'registration'
   | 'voting'
   | 'tps_checkin'
@@ -10,9 +10,9 @@ export type HistoryItemType =
   | 'logout'
 
 export type HistoryItem = {
-  type: HistoryItemType
+  type: string
   timestamp: string
-  description: string
+  details?: string
   metadata?: {
     method?: string
     tps_name?: string
@@ -23,10 +23,13 @@ export type HistoryItem = {
   }
 }
 
+// New response structure
 export type VoterHistoryResponse = {
-  items: HistoryItem[]
-  voter_name?: string
-  voter_nim?: string
+  voting: HistoryItem[];
+  checkins: HistoryItem[];
+  registration: HistoryItem[];
+  qr: HistoryItem[];
+  activities: HistoryItem[];
 }
 
 export const fetchVoterHistory = async (

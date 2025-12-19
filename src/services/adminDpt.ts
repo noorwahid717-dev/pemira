@@ -34,12 +34,14 @@ type DptApiItem = {
     last_vote_at?: string | null
     last_vote_channel?: string | null
     last_tps_id?: number | null
+    digital_signature?: string | null // NEW: Signature data
   }
   voting_method?: 'ONLINE' | 'TPS'
   tps_id?: number | null
   checked_in_at?: string | null
   voted_at?: string | null
   updated_at?: string
+  digital_signature?: string | null
 }
 
 // Lookup response type
@@ -51,10 +53,10 @@ export type VoterLookupResponse = {
     voter_type: VoterType
     email?: string
     faculty_code?: string
-  study_program_code?: string
-  cohort_year?: number
-  semester?: number
-  academic_status?: AcademicStatusAPI
+    study_program_code?: string
+    cohort_year?: number
+    semester?: number
+    academic_status?: AcademicStatusAPI
     has_account: boolean
     lecturer_id?: number | null
     staff_id?: number | null
@@ -133,8 +135,9 @@ const mapVotingMethod = (channel?: string | null): VotingMethod => {
 }
 
 const mapStatus = (item: DptApiItem): VoterStatus => {
-  // New API: check voted_at or status='VOTED'
+  // New API: check voted_at or status='VOTED' or top-level has_voted
   if (item.voted_at) return 'sudah'
+  if (item.has_voted) return 'sudah'
   if (typeof item.status === 'string' && item.status === 'VOTED') return 'sudah'
   // Legacy API: check status.has_voted
   if (typeof item.status === 'object' && item.status?.has_voted) return 'sudah'
@@ -159,7 +162,7 @@ const mapVoterType = (raw?: string): 'mahasiswa' | 'dosen' | 'staf' | string | u
 
 const extractItems = (payload: any): DptApiItem[] => {
   let items: any[] = []
-  
+
   if (Array.isArray(payload)) {
     items = payload
   } else if (Array.isArray(payload?.items)) {
@@ -169,11 +172,11 @@ const extractItems = (payload: any): DptApiItem[] => {
   } else if (Array.isArray(payload?.data)) {
     items = payload.data
   }
-  
+
   // Filter out null/undefined items and items without required fields
-  return items.filter(item => 
-    item && 
-    typeof item === 'object' && 
+  return items.filter(item =>
+    item &&
+    typeof item === 'object' &&
     (item.nim || item.voter_id || item.election_voter_id)
   )
 }
@@ -209,6 +212,7 @@ const mapDptItems = (raw: DptApiItem[]): DPTEntry[] =>
   raw.map((item) => {
     const voterType = mapVoterType(item.type || item.voter_type || item.category || item.role)
     const isStaff = voterType === 'staf'
+
 
     // For staff, faculty_name might contain study program data incorrectly
     // So we handle it specially
@@ -256,21 +260,30 @@ const mapDptItems = (raw: DptApiItem[]): DPTEntry[] =>
 
     // Determine voted_at timestamp
     const votedAt = item.voted_at || (typeof item.status === 'object' ? item.status?.last_vote_at : undefined)
-    
+
     // Determine TPS ID
     const tpsId = item.tps_id ?? (typeof item.status === 'object' ? item.status?.last_tps_id : undefined)
 
     // Determine eligibility (new API uses status field directly)
     const isEligible = typeof item.status === 'object' ? (item.status?.is_eligible ?? true) : true
-    
-    // Get election voter status if available
-    const electionVoterStatus = typeof item.status === 'string' ? item.status : undefined
-    
+
     // Get has_voted flag
     const hasVoted = item.has_voted ?? (typeof item.status === 'object' ? item.status?.has_voted : false) ?? false
 
-    const id = item.election_voter_id 
-      ? item.election_voter_id.toString() 
+    // Get election voter status if available
+    let electionVoterStatus: ElectionVoterStatus | undefined
+    if (typeof item.status === 'string') {
+      electionVoterStatus = item.status
+    } else if (typeof item.status === 'object') {
+      // If status is an object, map based on verified logic or eligibility
+      // Assuming if they have an object status from election_voter, they are likely VERIFIED or VOTED unless specified
+      if (hasVoted) electionVoterStatus = 'VOTED'
+      else if (isEligible) electionVoterStatus = 'VERIFIED'
+      else electionVoterStatus = 'PENDING'
+    }
+
+    const id = item.election_voter_id
+      ? item.election_voter_id.toString()
       : `voter_${item.voter_id}`
 
     let cohortYearNumeric: number | undefined
@@ -287,6 +300,12 @@ const mapDptItems = (raw: DptApiItem[]): DPTEntry[] =>
     const classLabelSemester = voterType === 'mahasiswa' ? item.class_label : undefined
     const semesterValue = normalizeSemesterValue(item.semester ?? classLabelSemester ?? fallbackSemester)
 
+    const statusSuara = mapStatus(item)
+
+    // Determine voted_at timestamp with fallback to updated_at if voted
+    const explicitVotedAt = item.voted_at || (typeof item.status === 'object' ? item.status?.last_vote_at : undefined)
+    const waktuVoting = explicitVotedAt || (statusSuara === 'sudah' ? item.updated_at : undefined)
+
     return {
       id,
       voterId: item.voter_id,
@@ -302,9 +321,9 @@ const mapDptItems = (raw: DptApiItem[]): DPTEntry[] =>
       kelasLabel: item.class_label,
       akademik: mapAcademicStatus(item.academic_status),
       tipe: voterType,
-      statusSuara: mapStatus(item),
+      statusSuara,
       metodeVoting: votingMethod,
-      waktuVoting: votedAt ?? undefined,
+      waktuVoting,
       tpsId: tpsId ?? undefined,
       isEligible,
       hasAccount: item.has_account,
@@ -313,12 +332,14 @@ const mapDptItems = (raw: DptApiItem[]): DPTEntry[] =>
       checkedInAt: item.checked_in_at ?? undefined,
       votedAt: item.voted_at ?? undefined,
       updatedAt: item.updated_at,
+      digitalSignature: item.digital_signature ?? (typeof item.status === 'object' ? item.status?.digital_signature : null)
     }
   })
 
 export const fetchAdminDpt = async (token: string, params: URLSearchParams, electionId: number = getActiveElectionId()): Promise<{ items: DPTEntry[]; total: number }> => {
   try {
-    const primary = await apiRequest<any>(`/admin/elections/${electionId}/voters?${params.toString()}`, { token })
+    const timestamp = new Date().getTime()
+    const primary = await apiRequest<any>(`/admin/elections/${electionId}/voters?${params.toString()}&_t=${timestamp}`, { token })
     const rawItems = extractItems(primary)
     const items = mapDptItems(rawItems)
     return { items, total: extractTotal(primary, items.length) }
@@ -334,7 +355,8 @@ export const fetchAdminDpt = async (token: string, params: URLSearchParams, elec
 
 export const fetchAdminDptVoterById = async (token: string, electionVoterId: string, electionId: number = getActiveElectionId()): Promise<DPTEntry | null> => {
   try {
-    const response = await apiRequest<DptApiItem>(`/admin/elections/${electionId}/voters/${electionVoterId}`, { token })
+    const timestamp = new Date().getTime()
+    const response = await apiRequest<DptApiItem>(`/admin/elections/${electionId}/voters/${electionVoterId}?_t=${timestamp}`, { token })
     const items = mapDptItems([response])
     return items[0]
   } catch (err: any) {
@@ -451,7 +473,7 @@ export const importDptCsv = async (
 ): Promise<ImportResult> => {
   const formData = new FormData()
   formData.append('file', file)
-  
+
   const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/admin/elections/${electionId}/voters/import`, {
     method: 'POST',
     headers: {
@@ -459,12 +481,12 @@ export const importDptCsv = async (
     },
     body: formData,
   })
-  
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Import failed' }))
     throw new Error(error.message || `HTTP ${response.status}`)
   }
-  
+
   const result = await response.json()
   return result.data || result
 }
@@ -485,10 +507,10 @@ export const exportDptCsv = async (
       'Authorization': `Bearer ${token}`,
     },
   })
-  
+
   if (!response.ok) {
     throw new Error(`Export failed: HTTP ${response.status}`)
   }
-  
+
   return response.blob()
 }

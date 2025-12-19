@@ -26,12 +26,12 @@ import '../styles/VoterProfile.css'
 const VoterProfile = () => {
   const navigate = useNavigate()
   const { session, clearSession } = useVotingSession()
-  
+
   const [profile, setProfile] = useState<VoterCompleteProfile | null>(null)
   const [stats, setStats] = useState<ParticipationStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   // Edit mode states
   const [isEditMode, setIsEditMode] = useState(false)
   const [editEmail, setEditEmail] = useState('')
@@ -41,7 +41,7 @@ const VoterProfile = () => {
   const [editCohortYear, setEditCohortYear] = useState('')
   const [editClassLabel, setEditClassLabel] = useState('')
   const [saving, setSaving] = useState(false)
-  
+
   // Master data for dropdowns
   const [faculties, setFaculties] = useState<Faculty[]>([])
   const [programs, setPrograms] = useState<StudyProgram[]>([])
@@ -49,14 +49,14 @@ const VoterProfile = () => {
   const [lecturerPositions, setLecturerPositions] = useState<string[]>([])
   const [staffUnits, setStaffUnits] = useState<string[]>([])
   const [staffPositions, setStaffPositions] = useState<string[]>([])
-  
+
   // Password change states
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
-  
+
   // Notification state
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
@@ -65,23 +65,23 @@ const VoterProfile = () => {
     fetchFaculties()
       .then((res) => setFaculties(res.data ?? []))
       .catch(() => setFaculties([]))
-    
+
     fetchStudyPrograms()
       .then((res) => setPrograms(res.data ?? []))
       .catch(() => setPrograms([]))
-    
+
     fetchLecturerUnits()
       .then((res) => setLecturerUnits(res.data.map(u => u.name)))
       .catch(() => setLecturerUnits([]))
-    
+
     fetchLecturerPositions()
       .then((res) => setLecturerPositions(res.data.map(p => p.name)))
       .catch(() => setLecturerPositions([]))
-    
+
     fetchStaffUnits()
       .then((res) => setStaffUnits(res.data.map(u => u.name)))
       .catch(() => setStaffUnits([]))
-    
+
     fetchStaffPositions()
       .then((res) => setStaffPositions(res.data.map(p => p.name)))
       .catch(() => setStaffPositions([]))
@@ -95,20 +95,19 @@ const VoterProfile = () => {
 
     const controller = new AbortController()
     const electionId = getActiveElectionId()
-    
+
     Promise.all([
       fetchCompleteProfile(session.accessToken, electionId, { signal: controller.signal }),
       fetchParticipationStats(session.accessToken, electionId, { signal: controller.signal }).catch(() => null)
     ])
       .then(([profileData, statsData]) => {
-        console.log('Profile data received:', profileData)
-        console.log('Stats data received:', statsData)
-        
+
+
         // Validate profile data structure
         if (!profileData || !profileData.personal_info) {
           throw new Error('Invalid profile data structure')
         }
-        
+
         const normalizeVoterType = () => {
           const raw = (profileData.personal_info.voter_type || '').toUpperCase()
           const sessionRole = session?.user.role?.toUpperCase?.()
@@ -121,7 +120,7 @@ const VoterProfile = () => {
         }
 
         profileData.personal_info.voter_type = normalizeVoterType()
-        
+
         setProfile(profileData)
         setStats(statsData)
         setEditEmail(profileData.personal_info?.email || '')
@@ -151,7 +150,7 @@ const VoterProfile = () => {
 
   const handleSaveProfile = async () => {
     if (!session?.accessToken) return
-    
+
     setSaving(true)
     try {
       const payload: any = {
@@ -163,7 +162,7 @@ const VoterProfile = () => {
       if (editFacultyCode) {
         payload.faculty_code = editFacultyCode
       }
-      
+
       if (profile?.personal_info.voter_type === 'STUDENT') {
         if (editProgramCode) {
           payload.study_program_code = editProgramCode
@@ -189,13 +188,13 @@ const VoterProfile = () => {
       }
 
       const result = await updateProfile(session.accessToken, payload)
-      
+
       // Refresh profile
       const electionId = getActiveElectionId()
       const updatedProfile = await fetchCompleteProfile(session.accessToken, electionId)
       setProfile(updatedProfile)
       setIsEditMode(false)
-      
+
       // Show success with updated fields info
       const updatedFields = result.updated_fields?.join(', ') || 'beberapa field'
       showNotification('success', `Profil berhasil diperbarui (${updatedFields})`)
@@ -208,21 +207,21 @@ const VoterProfile = () => {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!session?.accessToken) return
-    
+
     setPasswordError('')
-    
+
     if (newPassword !== confirmPassword) {
       setPasswordError('Password baru tidak cocok')
       return
     }
-    
+
     if (newPassword.length < 8) {
       setPasswordError('Password minimal 8 karakter')
       return
     }
-    
+
     setSaving(true)
     try {
       await changePassword(session.accessToken, {
@@ -230,7 +229,7 @@ const VoterProfile = () => {
         new_password: newPassword,
         confirm_password: confirmPassword,
       })
-      
+
       showNotification('success', 'Password berhasil diubah!')
       setShowPasswordForm(false)
       setCurrentPassword('')
@@ -268,11 +267,11 @@ const VoterProfile = () => {
   if (error || !profile) {
     // If error contains "token" or "unauthorized", auto logout
     const isTokenError = error && (
-      error.toLowerCase().includes('token') || 
+      error.toLowerCase().includes('token') ||
       error.toLowerCase().includes('unauthorized') ||
       error.toLowerCase().includes('401')
     )
-    
+
     return (
       <div className="voter-profile-page">
         <div className="profile-error">
@@ -281,8 +280,8 @@ const VoterProfile = () => {
           <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
             <button className="btn-back" onClick={handleBack}>Kembali</button>
             {isTokenError && (
-              <button 
-                className="btn-logout" 
+              <button
+                className="btn-logout"
                 onClick={() => {
                   clearSession()
                   navigate('/login', { replace: true })
@@ -356,10 +355,10 @@ const VoterProfile = () => {
               </div>
             )}
           </div>
-          
+
           <h2 className="profile-name">{personal_info.name}</h2>
           <p className="profile-username">@{personal_info.username}</p>
-          
+
           {!isEditMode && (
             <button className="btn-edit-profile" onClick={() => setIsEditMode(true)}>
               <LucideIcon name="pencil" className="btn-icon" size={16} />
@@ -374,21 +373,21 @@ const VoterProfile = () => {
             <LucideIcon name="user" className="section-icon" size={20} />
             Informasi Pribadi
           </h3>
-          
+
           <div className="info-grid">
             {/* ID Field - berbeda per tipe */}
             <div className="info-item">
               <span className="info-label">
-                {personal_info.voter_type === 'STUDENT' ? 'NIM' : 
-                 personal_info.voter_type === 'LECTURER' ? 'NIDN' : 'NIP'}
+                {personal_info.voter_type === 'STUDENT' ? 'NIM' :
+                  personal_info.voter_type === 'LECTURER' ? 'NIDN' : 'NIP'}
               </span>
               <span className="info-value">
                 {personal_info.voter_type === 'STUDENT' ? personal_info.username :
-                 personal_info.voter_type === 'LECTURER' ? (personal_info.nidn || personal_info.username) :
-                 (personal_info.nip || personal_info.username)}
+                  personal_info.voter_type === 'LECTURER' ? (personal_info.nidn || personal_info.username) :
+                    (personal_info.nip || personal_info.username)}
               </span>
             </div>
-            
+
             {/* STUDENT FIELDS */}
             {personal_info.voter_type === 'STUDENT' && (
               <>
@@ -398,28 +397,28 @@ const VoterProfile = () => {
                     <span className="info-value">{personal_info.faculty_name}</span>
                   </div>
                 )}
-                
+
                 {personal_info.study_program_name && (
                   <div className="info-item">
                     <span className="info-label">Program Studi</span>
                     <span className="info-value">{personal_info.study_program_name}</span>
                   </div>
                 )}
-                
+
                 {personal_info.cohort_year && (
                   <div className="info-item">
                     <span className="info-label">Angkatan</span>
                     <span className="info-value">{personal_info.cohort_year}</span>
                   </div>
                 )}
-                
+
                 <div className="info-item">
                   <span className="info-label">Semester</span>
                   <span className="info-value">{normalizedSemester}</span>
                 </div>
               </>
             )}
-            
+
             {/* LECTURER FIELDS */}
             {personal_info.voter_type === 'LECTURER' && (
               <>
@@ -429,14 +428,14 @@ const VoterProfile = () => {
                     <span className="info-value">{personal_info.title}</span>
                   </div>
                 )}
-                
+
                 {lecturerDepartment && (
                   <div className="info-item">
                     <span className="info-label">Unit Kerja</span>
                     <span className="info-value">{lecturerDepartment}</span>
                   </div>
                 )}
-                
+
                 {personal_info.faculty_name && (
                   <div className="info-item">
                     <span className="info-label">Fakultas</span>
@@ -445,7 +444,7 @@ const VoterProfile = () => {
                 )}
               </>
             )}
-            
+
             {/* STAFF FIELDS */}
             {personal_info.voter_type === 'STAFF' && (
               <>
@@ -455,7 +454,7 @@ const VoterProfile = () => {
                     <span className="info-value">{personal_info.position}</span>
                   </div>
                 )}
-                
+
                 {staffUnit && (
                   <div className="info-item">
                     <span className="info-label">Unit Kerja</span>
@@ -464,7 +463,7 @@ const VoterProfile = () => {
                 )}
               </>
             )}
-            
+
             {/* Tipe Pemilih Badge */}
             <div className="info-item full-width">
               <span className="info-label">Tipe Pemilih</span>
@@ -486,7 +485,7 @@ const VoterProfile = () => {
             <LucideIcon name="mail" className="section-icon" size={20} />
             Kontak
           </h3>
-          
+
           {isEditMode ? (
             <div className="edit-form">
               <div className="form-group">
@@ -499,7 +498,7 @@ const VoterProfile = () => {
                   placeholder="email@uniwa.ac.id"
                 />
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">No. Telepon</label>
                 <input
@@ -519,7 +518,7 @@ const VoterProfile = () => {
                 <span className="info-label">Email</span>
                 <span className="info-value">{personal_info.email || 'Belum diisi'}</span>
               </div>
-              
+
               <div className="info-item">
                 <span className="info-label">No. Telepon</span>
                 <span className="info-value">{personal_info.phone || 'Belum diisi'}</span>
@@ -535,7 +534,7 @@ const VoterProfile = () => {
               <LucideIcon name="user" className="section-icon" size={20} />
               Informasi Identitas (Opsional)
             </h3>
-            
+
             <div className="edit-form">
               {isStudent && (
                 <>
@@ -688,15 +687,15 @@ const VoterProfile = () => {
                   onChange={(e) => setEditClassLabel(e.target.value)}
                   placeholder={
                     isStudent ? 'Contoh: IF-A, SI-B' :
-                    isLecturer ? 'Contoh: Lektor, Lektor Kepala' :
-                    'Contoh: Koordinator, Staff'
+                      isLecturer ? 'Contoh: Lektor, Lektor Kepala' :
+                        'Contoh: Koordinator, Staff'
                   }
                 />
                 <span className="form-hint">
                   {isStudent ? 'Label kelas' : isLecturer ? 'Jabatan akademik' : 'Posisi di unit'}
                 </span>
               </div>
-              
+
               <div className="form-actions">
                 <button
                   className="btn-cancel"
@@ -731,7 +730,7 @@ const VoterProfile = () => {
             <LucideIcon name="ballot" className="section-icon" size={20} />
             Informasi Voting
           </h3>
-          
+
           <div className="info-grid">
             <div className="info-item">
               <span className="info-label">Metode Preferensi</span>
@@ -744,14 +743,14 @@ const VoterProfile = () => {
                 {voting_info.preferred_method === 'ONLINE' ? 'Online' : 'TPS'}
               </span>
             </div>
-            
+
             <div className="info-item">
               <span className="info-label">Status Voting</span>
               <span className={`info-value status ${voting_info.has_voted ? 'voted' : 'not-voted'}`}>
                 {voting_info.has_voted ? '✓ Sudah Voting' : '○ Belum Voting'}
               </span>
             </div>
-            
+
             {voting_info.tps_name && (
               <div className="info-item full-width">
                 <span className="info-label">Lokasi TPS</span>
@@ -761,7 +760,7 @@ const VoterProfile = () => {
                 )}
               </div>
             )}
-            
+
             {voting_info.voted_at && (
               <div className="info-item full-width">
                 <span className="info-label">Waktu Voting</span>
@@ -786,24 +785,24 @@ const VoterProfile = () => {
               <LucideIcon name="barChart" className="section-icon" size={20} />
               Statistik Partisipasi
             </h3>
-            
+
             <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-value">{participation.total_elections}</div>
                 <div className="stat-label">Total Pemilu</div>
               </div>
-              
+
               <div className="stat-card">
                 <div className="stat-value">{participation.participated_elections}</div>
                 <div className="stat-label">Diikuti</div>
               </div>
-              
+
               <div className="stat-card highlight">
                 <div className="stat-value">{participation.participation_rate.toFixed(0)}%</div>
                 <div className="stat-label">Tingkat Partisipasi</div>
               </div>
             </div>
-            
+
             {stats && stats.elections && stats.elections.length > 0 && (
               <div className="participation-history">
                 <h4 className="history-title">Riwayat Partisipasi</h4>
@@ -833,7 +832,7 @@ const VoterProfile = () => {
             <LucideIcon name="settings" className="section-icon" size={20} />
             Pengaturan Akun
           </h3>
-          
+
           <div className="settings-list">
             <button
               className="setting-item"
@@ -843,25 +842,25 @@ const VoterProfile = () => {
               <span className="setting-text">Ganti Password</span>
               <LucideIcon name="arrowRight" className="setting-arrow" size={18} />
             </button>
-            
+
             <button className="setting-item" onClick={handleLogout}>
               <LucideIcon name="logOut" className="setting-icon" size={20} />
               <span className="setting-text">Keluar</span>
               <LucideIcon name="arrowRight" className="setting-arrow" size={18} />
             </button>
           </div>
-          
+
           {showPasswordForm && (
             <form className="password-form" onSubmit={handleChangePassword}>
               <h4 className="form-title">Ganti Password</h4>
-              
+
               {passwordError && (
                 <div className="form-error">
                   <LucideIcon name="alertCircle" className="error-icon" size={20} />
                   <span>{passwordError}</span>
                 </div>
               )}
-              
+
               <div className="form-group">
                 <label className="form-label">Password Lama</label>
                 <input
@@ -872,7 +871,7 @@ const VoterProfile = () => {
                   required
                 />
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">Password Baru</label>
                 <input
@@ -885,7 +884,7 @@ const VoterProfile = () => {
                 />
                 <span className="form-hint">Minimal 8 karakter</span>
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">Konfirmasi Password Baru</label>
                 <input
@@ -896,7 +895,7 @@ const VoterProfile = () => {
                   required
                 />
               </div>
-              
+
               <div className="form-actions">
                 <button
                   type="button"
@@ -936,7 +935,7 @@ const VoterProfile = () => {
               })}
             </span>
           </div>
-          
+
           {account_info.last_login && (
             <div className="meta-item">
               <span className="meta-label">Login terakhir</span>

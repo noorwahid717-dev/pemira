@@ -4,7 +4,7 @@ import AdminLayout from '../components/admin/AdminLayout'
 import { LucideIcon, type IconName } from '../components/LucideIcon'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 import { useDPTAdminStore } from '../hooks/useDPTAdminStore'
-import { deleteAdminDptVoter } from '../services/adminDpt'
+import { deleteAdminDptVoter, fetchAdminDptVoterById } from '../services/adminDpt'
 import { updateElectionVoter } from '../services/adminElectionVoters'
 import { useActiveElection } from '../hooks/useActiveElection'
 import { useToast } from '../components/Toast'
@@ -40,6 +40,7 @@ const AdminDPTList = (): JSX.Element => {
   const [deleting, setDeleting] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [openActionId, setOpenActionId] = useState<string | null>(null)
+  const [signatureModalUrl, setSignatureModalUrl] = useState<string | null>(null)
   const actionDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const { showToast } = useToast()
   const { showPopup } = usePopup()
@@ -145,7 +146,7 @@ const AdminDPTList = (): JSX.Element => {
 
   const handleUpdateStatus = async (electionVoterId: string, status: ElectionVoterStatus, voterName: string) => {
     if (!token || !activeElectionId) return
-    
+
     const confirmed = await showPopup({
       title: 'Konfirmasi Update Status',
       message: `Ubah status "${voterName}" menjadi ${electionVoterStatusLabels[status]}?`,
@@ -170,7 +171,7 @@ const AdminDPTList = (): JSX.Element => {
 
   const handleBulkVerify = async () => {
     if (!token || !activeElectionId || selected.size === 0) return
-    
+
     const confirmed = await showPopup({
       title: 'Konfirmasi Verifikasi Massal',
       message: `Verifikasi ${selected.size} pemilih terpilih?`,
@@ -198,6 +199,30 @@ const AdminDPTList = (): JSX.Element => {
     await refresh()
     showToast(`Selesai: ${successCount} berhasil diverifikasi, ${errorCount} gagal`, successCount > 0 ? 'success' : 'error')
     setUpdating(false)
+  }
+
+  const handleViewSignature = async (voter: any) => {
+    if (voter.digitalSignature) {
+      setSignatureModalUrl(voter.digitalSignature)
+      return
+    }
+
+    if (!token) return
+
+    // Show loading or immediate feedback
+    const loadingToastId = showToast('Mengambil data tanda tangan...', 'info')
+
+    try {
+      const detail = await fetchAdminDptVoterById(token, voter.id)
+      if (detail && detail.digitalSignature) {
+        setSignatureModalUrl(detail.digitalSignature)
+      } else {
+        showToast('Tanda tangan tidak ditemukan untuk pemilih ini.', 'warning')
+      }
+    } catch (err) {
+      console.error('Failed to fetch voter detail for signature:', err)
+      showToast('Gagal mengambil data tanda tangan.', 'error')
+    }
   }
 
   useEffect(() => {
@@ -282,14 +307,7 @@ const AdminDPTList = (): JSX.Element => {
             <option value="dosen">Dosen</option>
             <option value="staf">Staf</option>
           </select>
-          <select value={filters.electionVoterStatus} onChange={(event) => setFilters((prev) => ({ ...prev, electionVoterStatus: event.target.value as typeof filters.electionVoterStatus }))}>
-            <option value="all">Status Verifikasi: Semua</option>
-            <option value="PENDING">Menunggu Verifikasi</option>
-            <option value="VERIFIED">Terverifikasi</option>
-            <option value="REJECTED">Ditolak</option>
-            <option value="VOTED">Sudah Memilih</option>
-            <option value="BLOCKED">Diblokir</option>
-          </select>
+          {/* Status Verifikasi filter removed */}
           <select value={filters.metode} onChange={(event) => setFilters((prev) => ({ ...prev, metode: event.target.value as typeof filters.metode }))}>
             <option value="all">Metode: Semua</option>
             <option value="online">Online</option>
@@ -330,11 +348,12 @@ const AdminDPTList = (): JSX.Element => {
                 <th>Semester</th>
                 <th>Tipe Pemilih</th>
                 <th>Akademik</th>
-                <th>Status Verifikasi</th>
+
                 <th>Status Suara</th>
                 <th>Metode</th>
+                <th>TTD</th>
                 <th>Aksi</th>
-                <th>Terakhir Vote</th>
+                <th>Riwayat Vote</th>
               </tr>
             </thead>
             <tbody>
@@ -349,19 +368,19 @@ const AdminDPTList = (): JSX.Element => {
                 const rowActions = [
                   voter.electionVoterStatus === 'PENDING'
                     ? {
-                        key: 'verify',
-                        label: 'Verifikasi',
-                        icon: 'shieldCheck',
-                        onClick: () => void handleUpdateStatus(voter.id, 'VERIFIED', voter.nama)
-                      }
+                      key: 'verify',
+                      label: 'Verifikasi',
+                      icon: 'shieldCheck',
+                      onClick: () => void handleUpdateStatus(voter.id, 'VERIFIED', voter.nama)
+                    }
                     : null,
                   voter.electionVoterStatus === 'VERIFIED'
                     ? {
-                        key: 'reject',
-                        label: 'Tolak Verifikasi',
-                        icon: 'xCircle',
-                        onClick: () => void handleUpdateStatus(voter.id, 'REJECTED', voter.nama)
-                      }
+                      key: 'reject',
+                      label: 'Tolak Verifikasi',
+                      icon: 'xCircle',
+                      onClick: () => void handleUpdateStatus(voter.id, 'REJECTED', voter.nama)
+                    }
                     : null,
                   {
                     key: 'detail',
@@ -412,23 +431,30 @@ const AdminDPTList = (): JSX.Element => {
                       )}
                     </td>
                     <td>{akademikLabels[voter.akademik]}</td>
-                    <td>
-                      {voter.electionVoterStatus ? (
-                        <span className={`status-chip status-${voter.electionVoterStatus.toLowerCase()}`}>
-                          {electionVoterStatusLabels[voter.electionVoterStatus]}
-                        </span>
-                      ) : (
-                        <span className="status-chip">-</span>
-                      )}
-                    </td>
+
                     <td>
                       <span className={`status-chip ${voter.statusSuara}`}>{statusSuaraLabels[voter.statusSuara]}</span>
                     </td>
                     <td>
                       <div className="stacked-cell">
                         <span>{voter.metodeVoting}</span>
-                        {voter.waktuVoting && <small>{new Date(voter.waktuVoting).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</small>}
+                        {/* Removed duplicate time display, now shown in Riwayat Vote */}
                       </div>
+                    </td>
+                    <td>
+                      {voter.statusSuara === 'sudah' ? (
+                        <button
+                          type="button"
+                          className="btn-icon-sm"
+                          title="Lihat Tanda Tangan"
+                          onClick={() => void handleViewSignature(voter)}
+                          style={{ color: '#2563eb', padding: '4px', borderRadius: '4px', border: '1px solid #e5e7eb' }}
+                        >
+                          <LucideIcon name="fileText" size={16} />
+                        </button>
+                      ) : (
+                        <span style={{ color: '#d1d5db' }}>-</span>
+                      )}
                     </td>
                     <td>
                       <div
@@ -475,7 +501,6 @@ const AdminDPTList = (): JSX.Element => {
                     <td>
                       <div className="stacked-cell">
                         <span>{voter.waktuVoting ? new Date(voter.waktuVoting).toLocaleString('id-ID') : '-'}</span>
-                        {voter.metodeVoting && voter.metodeVoting !== '-' && <small>{voter.metodeVoting.toUpperCase()}</small>}
                       </div>
                     </td>
                   </tr>
@@ -502,7 +527,35 @@ const AdminDPTList = (): JSX.Element => {
           </div>
         </div>
       </div>
-    </AdminLayout>
+
+      {/* Signature Modal */}
+      {signatureModalUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="bg-white rounded-lg shadow-xl overflow-hidden max-w-lg w-full" style={{ backgroundColor: 'white', borderRadius: '8px', padding: '20px', maxWidth: '500px', width: '100%' }}>
+            <div className="flex justify-between items-center mb-4" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <h3 className="text-lg font-semibold" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>Tanda Tangan Digital</h3>
+              <button
+                onClick={() => setSignatureModalUrl(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', padding: '0 0.5rem' }}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="flex justify-center p-4 bg-gray-50 rounded border" style={{ display: 'flex', justifyContent: 'center', padding: '1rem', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
+              <img src={signatureModalUrl} alt="Digital Signature" style={{ maxWidth: '100%', maxHeight: '300px' }} />
+            </div>
+            <div className="mt-4 flex justify-end" style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                className="btn-secondary"
+                onClick={() => setSignatureModalUrl(null)}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AdminLayout >
   )
 }
 

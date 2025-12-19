@@ -4,6 +4,9 @@ import { useVotingSession } from '../hooks/useVotingSession'
 import { useDashboardPemilih, type PemiraStage } from '../hooks/useDashboardPemilih'
 import { LucideIcon, type IconName } from '../components/LucideIcon'
 import { QRCodeSVG } from 'qrcode.react'
+
+import DashboardHeader from '../components/dashboard/DashboardHeader'
+import DashboardFooter from '../components/dashboard/DashboardFooter'
 import '../styles/DashboardPemilihHiFi.css'
 
 type VoterMode = 'ONLINE' | 'OFFLINE'
@@ -81,23 +84,47 @@ const formatStageRange = (start?: string | null, end?: string | null): string | 
 const DashboardPemilihHiFi = (): JSX.Element => {
   const navigate = useNavigate()
   const { session, mahasiswa, clearSession } = useVotingSession()
-  const dashboardData = useDashboardPemilih(session?.accessToken || null)
+  const { refresh, ...dashboardData } = useDashboardPemilih(session?.accessToken || null)
+
+  // Force refresh on mount to ensure status is fresh
+  useEffect(() => {
+    refresh()
+  }, [])
 
   const currentStage = dashboardData.currentStage
 
-  const voterData: VoterData = useMemo(() => {
+  const voterData = useMemo(() => {
+    if (!dashboardData) return null
     const status = dashboardData.voterStatus
     const qr = dashboardData.qrData
-    
+
+    const user = dashboardData.user
+    const profile = user?.profile
+
+    // Robust role detection similar to VoterProfile.tsx
+    const detectRole = () => {
+      const rawRole = user?.role?.toUpperCase()
+      if (rawRole === 'LECTURER' || rawRole === 'STAFF') return rawRole
+
+      // Fallback checks on profile fields
+      if (profile?.department_name || profile?.position?.toLowerCase().includes('dosen')) return 'LECTURER'
+      if (profile?.unit_name || profile?.position) return 'STAFF'
+
+      return 'STUDENT'
+    }
+
+    const detectedRole = detectRole()
+
     return {
       nama: dashboardData.user?.profile?.name || mahasiswa?.nama || 'Pemilih',
       nim: dashboardData.user?.username || mahasiswa?.nim || '-',
       mode: (status?.preferred_method === 'TPS' ? 'OFFLINE' : 'ONLINE') as VoterMode,
-      status: (status?.has_voted ? 'VOTED' : 'NOT_VOTED') as VoterStatus,
+      status: (status?.has_voted || session?.hasVoted ? 'VOTED' : 'NOT_VOTED') as VoterStatus,
       qrCode: qr?.qr_token || '',
       qrId: qr?.qr_token?.substring(0, 10) || '-',
+      role: detectedRole
     }
-  }, [dashboardData, mahasiswa])
+  }, [dashboardData, mahasiswa, session?.hasVoted])
 
   const [countdown, setCountdown] = useState({
     days: 0,
@@ -199,27 +226,27 @@ const DashboardPemilihHiFi = (): JSX.Element => {
 
   const notifications = useMemo(() => {
     const notifs = []
-    
+
     if (dashboardData.voterStatus?.eligible) {
       notifs.push({ time: 'Hari ini', message: 'Anda terdaftar sebagai pemilih yang sah.' })
     }
-    
+
     if (currentStage === 'campaign') {
       notifs.push({ time: 'Hari ini', message: 'Masa kampanye sedang berlangsung.' })
     }
-    
+
     if (currentStage === 'silence') {
       notifs.push({ time: 'Hari ini', message: 'Masa tenang telah dimulai.' })
     }
-    
+
     if (currentStage === 'voting' && !voterData.status) {
       notifs.push({ time: 'Sekarang', message: 'Voting telah dibuka! Silakan berikan suara Anda.' })
     }
-    
+
     if (voterData.status === 'VOTED') {
       notifs.push({ time: 'Selesai', message: 'Terima kasih telah memberikan suara.' })
     }
-    
+
     return notifs.length > 0 ? notifs : [
       { time: '-', message: 'Tidak ada notifikasi baru.' }
     ]
@@ -249,12 +276,12 @@ const DashboardPemilihHiFi = (): JSX.Element => {
       alert('QR Code tidak tersedia')
       return
     }
-    
+
     // Find the QR code SVG element (check all possible locations)
-    const qrElement = document.getElementById('qr-code-voting-panel') 
+    const qrElement = document.getElementById('qr-code-voting-panel')
       || document.getElementById('qr-code-mode-panel')
       || document.getElementById('qr-code-registration-panel')
-    
+
     if (!qrElement) {
       alert('QR Code belum di-render')
       return
@@ -275,16 +302,16 @@ const DashboardPemilihHiFi = (): JSX.Element => {
     const svgData = new XMLSerializer().serializeToString(svg)
     const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
     const url = URL.createObjectURL(svgBlob)
-    
+
     const img = new Image()
     img.onload = () => {
       // Draw white background
       ctx.fillStyle = 'white'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      
+
       // Draw QR code
       ctx.drawImage(img, 20, 20)
-      
+
       // Convert canvas to blob and download
       canvas.toBlob((blob) => {
         if (blob) {
@@ -296,7 +323,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
           URL.revokeObjectURL(downloadUrl)
         }
       }, 'image/png')
-      
+
       URL.revokeObjectURL(url)
     }
     img.src = url
@@ -345,7 +372,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
               <h2>Tahap Voting telah dibuka!</h2>
               <p>Anda terdaftar sebagai <strong>PEMILIH ONLINE</strong>.</p>
               <p>Silakan memberikan suara melalui platform ini.</p>
-              
+
               <div className="status-badge not-voted">
                 Status: <strong>BELUM MEMILIH</strong>
               </div>
@@ -362,14 +389,14 @@ const DashboardPemilihHiFi = (): JSX.Element => {
               <h2>Tahap Voting telah dibuka!</h2>
               <p>Anda terdaftar sebagai <strong>PEMILIH OFFLINE (TPS)</strong>.</p>
               <p>Silakan datang ke TPS terdekat sesuai jadwal.</p>
-              
+
               <div className="qr-display">
                 <p className="qr-label">Tunjukkan QR pendaftaran berikut:</p>
                 <div className="qr-code-box">
                   <div className="qr-placeholder">
                     {voterData.qrCode ? (
-                      <QRCodeSVG 
-                        value={voterData.qrCode} 
+                      <QRCodeSVG
+                        value={voterData.qrCode}
                         size={256}
                         level="H"
                         includeMargin={true}
@@ -434,13 +461,13 @@ const DashboardPemilihHiFi = (): JSX.Element => {
               <h2>Anda Terdaftar sebagai Pemilih TPS</h2>
               <p>Anda terdaftar sebagai <strong>PEMILIH OFFLINE (TPS)</strong>.</p>
               <p>QR Code Anda sudah siap! Simpan QR code ini untuk digunakan saat voting nanti.</p>
-              
+
               <div className="qr-display">
                 <p className="qr-label">QR Code Pendaftaran Anda:</p>
                 <div className="qr-code-box">
                   <div className="qr-placeholder">
-                    <QRCodeSVG 
-                      value={voterData.qrCode} 
+                    <QRCodeSVG
+                      value={voterData.qrCode}
                       size={256}
                       level="H"
                       includeMargin={true}
@@ -459,14 +486,14 @@ const DashboardPemilihHiFi = (): JSX.Element => {
                   <LucideIcon name="printer" className="btn-icon" size={20} /> Cetak QR
                 </button>
               </div>
-              
+
               <p style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
                 💡 Tip: Simpan atau cetak QR code ini sekarang. Anda akan membutuhkannya saat datang ke TPS untuk voting.
               </p>
             </div>
           )
         }
-        
+
         return (
           <div className="main-panel default-panel">
             <LucideIcon name="info" className="panel-icon" size={64} />
@@ -487,7 +514,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
             <LucideIcon name="laptop" className="mode-icon" size={32} />
             <h3>Alur Pemilihan Online</h3>
           </div>
-          
+
           <ol className="mode-steps">
             <li>Buka halaman kandidat ketika masa voting dibuka.</li>
             <li>Pilih salah satu pasangan calon.</li>
@@ -502,8 +529,8 @@ const DashboardPemilihHiFi = (): JSX.Element => {
             </span>
           </div>
 
-          <button 
-            className="btn-mode-action" 
+          <button
+            className="btn-mode-action"
             onClick={handleViewCandidates}
             disabled={currentStage !== 'voting'}
           >
@@ -518,7 +545,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
             <LucideIcon name="building" className="mode-icon" size={32} />
             <h3>Alur Pemilihan Offline (TPS)</h3>
           </div>
-          
+
           <ol className="mode-steps">
             <li>Datang ke TPS sesuai jadwal.</li>
             <li>Tunjukkan QR pendaftaran Anda.</li>
@@ -533,8 +560,8 @@ const DashboardPemilihHiFi = (): JSX.Element => {
             <div className="qr-code-display">
               <div className="qr-placeholder-small">
                 {voterData.qrCode ? (
-                  <QRCodeSVG 
-                    value={voterData.qrCode} 
+                  <QRCodeSVG
+                    value={voterData.qrCode}
                     size={180}
                     level="H"
                     includeMargin={true}
@@ -551,7 +578,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
                 <span className="qr-id-value">{voterData.qrId}</span>
               </div>
             </div>
-            
+
             <div className="qr-action-buttons">
               <button className="btn-qr-action" onClick={handleDownloadQR}>
                 <LucideIcon name="download" className="btn-icon" size={20} /> Unduh QR
@@ -577,11 +604,11 @@ const DashboardPemilihHiFi = (): JSX.Element => {
   if (dashboardData.error) {
     // Check if error is token-related
     const isTokenError = dashboardData.error && (
-      dashboardData.error.toLowerCase().includes('token') || 
+      dashboardData.error.toLowerCase().includes('token') ||
       dashboardData.error.toLowerCase().includes('unauthorized') ||
       dashboardData.error.toLowerCase().includes('401')
     )
-    
+
     return (
       <div className="dashboard-pemilih-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: '20px' }}>
         <div style={{ textAlign: 'center' }}>
@@ -593,7 +620,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
           )}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
             {!isTokenError && (
-              <button 
+              <button
                 onClick={() => window.location.reload()}
                 style={{
                   padding: '10px 20px',
@@ -607,7 +634,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
                 Muat Ulang
               </button>
             )}
-            <button 
+            <button
               onClick={() => {
                 clearSession()
                 navigate('/login', { replace: true })
@@ -632,32 +659,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
   return (
     <div className="dashboard-pemilih-page">
       {/* Header */}
-      <header className="dashboard-header">
-        <div className="header-content">
-          <div className="header-left">
-            <div className="logo-pemira">
-              <LucideIcon name="ballot" className="logo-icon" size={28} />
-              <span className="logo-text">PEMIRA UNIWA</span>
-            </div>
-          </div>
-          
-          <div className="header-right">
-            <button className="profile-button">
-              <LucideIcon name="user" className="profile-icon" size={24} />
-            </button>
-          </div>
-        </div>
-
-        <div className="user-info">
-          <h1 className="user-greeting" style={{ color: '#FFFFFF' }}>Halo, {voterData.nama}!</h1>
-          <p className="user-details" style={{ color: '#FFFFFF' }}>
-            <span className="user-nim" style={{ color: '#FFFFFF' }}>NIM {voterData.nim}</span>
-            <span className="user-mode-badge" data-mode={voterData.mode.toLowerCase()} style={{ color: '#FFFFFF' }}>
-              Mode: {voterData.mode === 'ONLINE' ? 'ONLINE' : 'OFFLINE (TPS)'}
-            </span>
-          </p>
-        </div>
-      </header>
+      <DashboardHeader voterData={voterData} />
 
       {/* Main Content */}
       <main className="dashboard-main">
@@ -668,10 +670,10 @@ const DashboardPemilihHiFi = (): JSX.Element => {
               <LucideIcon name="mapPin" className="section-icon" size={24} />
               Status PEMIRA
             </h2>
-            
+
             <div className="timeline-container">
               {timelineStages.map((stage, index) => (
-                <div 
+                <div
                   key={stage.id}
                   className={`timeline-stage ${stage.status}`}
                   style={{ '--stage-index': index } as React.CSSProperties}
@@ -682,7 +684,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
                       <div className="stage-line" />
                     )}
                   </div>
-                  
+
                   <div className="stage-content">
                     <LucideIcon name={stage.icon} className="stage-icon" size={28} />
                     <div className="stage-info">
@@ -723,7 +725,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
               <LucideIcon name="bell" className="section-icon" size={24} />
               Notifikasi
             </h2>
-            
+
             <div className="notifications-list">
               {notifications.map((notif, index) => (
                 <div key={index} className="notification-item" style={{ '--notif-index': index } as React.CSSProperties}>
@@ -737,30 +739,7 @@ const DashboardPemilihHiFi = (): JSX.Element => {
       </main>
 
       {/* Footer Navigation */}
-      <footer className="dashboard-footer">
-        <nav className="footer-nav">
-          <button className="nav-item active">
-            <LucideIcon name="home" className="nav-icon" size={24} />
-            <span className="nav-label">Beranda</span>
-          </button>
-          <button className="nav-item" onClick={() => navigate('/dashboard/kandidat')}>
-            <LucideIcon name="users" className="nav-icon" size={24} />
-            <span className="nav-label">Kandidat</span>
-          </button>
-          <button className="nav-item" onClick={() => navigate('/dashboard/riwayat')}>
-            <LucideIcon name="scroll" className="nav-icon" size={24} />
-            <span className="nav-label">Riwayat</span>
-          </button>
-          <button className="nav-item" onClick={() => navigate('/dashboard/bantuan')}>
-            <LucideIcon name="helpCircle" className="nav-icon" size={24} />
-            <span className="nav-label">Bantuan</span>
-          </button>
-          <button className="nav-item" onClick={() => navigate('/dashboard/profil')}>
-            <LucideIcon name="user" className="nav-icon" size={24} />
-            <span className="nav-label">Profil</span>
-          </button>
-        </nav>
-      </footer>
+      <DashboardFooter />
     </div>
   )
 }

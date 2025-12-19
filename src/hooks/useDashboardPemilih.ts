@@ -37,13 +37,13 @@ const determineCurrentStage = (election: PublicElection | null, phases: PublicPh
   }
 
   const now = new Date()
-  
+
   // Check from phases (fallback)
   for (const phase of phases) {
     if (phase.start_at && phase.end_at) {
       const start = new Date(phase.start_at)
       const end = new Date(phase.end_at)
-      
+
       if (now >= start && now <= end) {
         const key = phase.key || phase.phase || ''
         const keyLower = key.toLowerCase()
@@ -62,6 +62,8 @@ const determineCurrentStage = (election: PublicElection | null, phases: PublicPh
 }
 
 export const useDashboardPemilih = (token: string | null) => {
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+
   const [data, setData] = useState<DashboardData>({
     user: null,
     election: null,
@@ -72,6 +74,9 @@ export const useDashboardPemilih = (token: string | null) => {
     loading: true,
     error: null,
   })
+
+  // Function to manually trigger a refresh
+  const refresh = () => setRefreshTrigger((prev) => prev + 1)
 
   useEffect(() => {
     if (!token) {
@@ -148,7 +153,7 @@ export const useDashboardPemilih = (token: string | null) => {
     return () => {
       controller.abort()
     }
-  }, [token])
+  }, [token, refreshTrigger])
 
-  return data
+  return { ...data, refresh }
 }

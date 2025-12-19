@@ -30,12 +30,13 @@ export type VoterElectionStatus = {
 
 export const fetchVoterStatus = async (token: string, electionId: number, options?: { signal?: AbortSignal }): Promise<VoterMeStatus> => {
   try {
-    // Try new API endpoint first
-    const response = await apiRequest<any>(`/voters/me/elections/${electionId}/status`, { token, signal: options?.signal })
-    
+    // Try new API endpoint first, with cache busting
+    const timestamp = new Date().getTime()
+    const response = await apiRequest<any>(`/voters/me/elections/${electionId}/status?_t=${timestamp}`, { token, signal: options?.signal })
+
     // Handle wrapped response (backend returns {data: {...}})
     const newStatus: VoterElectionStatus = (response as any).data || response
-    
+
     // Map to legacy format
     return {
       election_id: electionId,

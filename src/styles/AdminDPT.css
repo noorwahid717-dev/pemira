@@ -370,3 +370,57 @@
     align-items: flex-start;
   }
 }
+
+/* Form Styles */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  max-width: 800px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-field label {
+  font-weight: 600;
+  color: var(--admin-color-neutral-700, #374151);
+  font-size: 0.95rem;
+}
+
+.form-field input[type="text"],
+.form-field input[type="email"],
+.form-field input[type="number"],
+.form-field select {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--admin-color-neutral-300, #cbd5e1);
+  font-size: 1rem;
+  width: 100%;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  outline: none;
+  border-color: var(--admin-color-brand-500, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.form-field input:disabled,
+.form-field select:disabled {
+  background: var(--admin-color-neutral-100, #f3f4f6);
+  color: var(--admin-color-neutral-500, #6b7280);
+  cursor: not-allowed;
+  border-color: var(--admin-color-neutral-200, #e5e7eb);
+}
+
+.form-field small {
+  font-size: 0.85rem;
+  color: var(--admin-color-neutral-500, #6b7280);
+  line-height: 1.4;
+}

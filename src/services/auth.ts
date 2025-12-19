@@ -6,6 +6,9 @@ export type AuthUserProfile = {
   study_program_name?: string
   cohort_year?: number
   semester?: string
+  department_name?: string
+  unit_name?: string
+  position?: string
 }
 
 export type AuthUser = {
@@ -78,9 +81,9 @@ export type StaffRegistrationResponse = {
   voting_mode: 'ONLINE' | 'TPS'
 }
 
-export type RegistrationResponse = 
-  | StudentRegistrationResponse 
-  | LecturerRegistrationResponse 
+export type RegistrationResponse =
+  | StudentRegistrationResponse
+  | LecturerRegistrationResponse
   | StaffRegistrationResponse
 
 // Legacy type for backward compatibility

@@ -40,6 +40,7 @@ export type DPTEntry = {
   checkedInAt?: string | null
   votedAt?: string | null
   updatedAt?: string
+  digitalSignature?: string | null // NEW: Signature data from status
 }
 
 export type ImportStep = 1 | 2 | 3 | 4

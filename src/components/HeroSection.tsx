@@ -167,24 +167,9 @@ const HeroSection = ({ election, loading = false, error }: Props): JSX.Element =
   const hasElection = Boolean(election)
   const isNoActiveElectionError = error?.toLowerCase().includes('pemilu aktif')
   const showNoElectionState = !hasElection && !loading
-  
-  // Debug logging
-  if (typeof window !== 'undefined') {
-    console.log('[HeroSection Debug]', {
-      hasElection,
-      loading,
-      showNoElectionState,
-      election: election ? {
-        id: election.id,
-        status: election.status,
-        current_phase: election.current_phase,
-        voting_start_at: election.voting_start_at,
-        voting_end_at: election.voting_end_at,
-        phases_count: election.phases?.length
-      } : null
-    })
-  }
-  
+
+
+
   // Use current_phase from backend (calculated) instead of status
   const effectivePhase = election?.current_phase ?? election?.status
   const statusLabel = loading ? 'Memuat status...' : hasElection ? statusLabelMap[effectivePhase ?? ''] ?? 'Pemilu aktif' : 'Belum ada pemilu aktif'
@@ -215,7 +200,7 @@ const HeroSection = ({ election, loading = false, error }: Props): JSX.Element =
     !loading && error && !isNoActiveElectionError ? 'Data jadwal belum dapat dimuat. Panitia sedang memperbarui informasi.' : null
   const targetDate = useMemo(() => {
     const resolved = resolveTargetDate(election, timelinePhases)
-    console.log('[Timer Debug] Target date:', resolved.toISOString(), 'Phases:', timelinePhases.length)
+
     return resolved
   }, [election, timelinePhases])
   const [countdown, setCountdown] = useState<CountdownState>(() => buildCountdown(targetDate))
@@ -327,8 +312,8 @@ const HeroSection = ({ election, loading = false, error }: Props): JSX.Element =
                     <p className="countdown-date">{targetLabel}</p>
                   </div>
                 </div>
-              {showLiveBadge && <span className="badge-live">● Sedang berlangsung</span>}
-            </div>
+                {showLiveBadge && <span className="badge-live">● Sedang berlangsung</span>}
+              </div>
               <div className="countdown-grid">
                 <div className="countdown-item">
                   <span className="countdown-value">{countdown.days.toString().padStart(2, '0')}</span>

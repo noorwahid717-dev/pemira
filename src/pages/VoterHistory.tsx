@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVotingSession } from '../hooks/useVotingSession'
 import { useDashboardPemilih } from '../hooks/useDashboardPemilih'
-import { fetchVoterHistory, type HistoryItem, type HistoryItemType } from '../services/voterHistory'
+import { fetchVoterHistory, type HistoryItem } from '../services/voterHistory'
 import { LucideIcon, type IconName } from '../components/LucideIcon'
 import '../styles/VoterHistory.css'
 
@@ -10,7 +10,7 @@ const VoterHistory = (): JSX.Element => {
   const navigate = useNavigate()
   const { session, mahasiswa } = useVotingSession()
   const dashboardData = useDashboardPemilih(session?.accessToken || null)
-  
+
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -22,10 +22,19 @@ const VoterHistory = (): JSX.Element => {
     }
 
     const controller = new AbortController()
-    
+
     fetchVoterHistory(session.accessToken, dashboardData.election.id, { signal: controller.signal })
       .then((data) => {
-        setHistory(data.items || [])
+        // Flatten and sort the response
+        const allItems: HistoryItem[] = [
+          ...(data.voting || []),
+          ...(data.checkins || []),
+          ...(data.registration || []),
+          ...(data.qr || []),
+          ...(data.activities || [])
+        ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+        setHistory(allItems)
         setError(null)
       })
       .catch((err) => {
@@ -38,7 +47,8 @@ const VoterHistory = (): JSX.Element => {
     return () => controller.abort()
   }, [session?.accessToken, dashboardData.election?.id])
 
-  const getHistoryIcon = (type: HistoryItemType): IconName => {
+  const getHistoryIcon = (rawType: string): IconName => {
+    const type = rawType.toLowerCase()
     switch (type) {
       case 'registration': return 'smartphone'
       case 'voting': return 'ballot'
@@ -51,7 +61,8 @@ const VoterHistory = (): JSX.Element => {
     }
   }
 
-  const getHistoryTitle = (type: HistoryItemType): string => {
+  const getHistoryTitle = (rawType: string): string => {
+    const type = rawType.toLowerCase()
     switch (type) {
       case 'registration': return 'Registrasi Akun'
       case 'voting': return 'Voting Berhasil'
@@ -60,7 +71,7 @@ const VoterHistory = (): JSX.Element => {
       case 'qr_rotated': return 'QR Code Diperbarui'
       case 'login': return 'Login'
       case 'logout': return 'Logout'
-      default: return 'Aktivitas'
+      default: return rawType.charAt(0).toUpperCase() + rawType.slice(1).toLowerCase()
     }
   }
 
@@ -94,7 +105,7 @@ const VoterHistory = (): JSX.Element => {
           <h1 className="header-title">Riwayat Aktivitas</h1>
           <div className="header-spacer"></div>
         </div>
-        
+
         <div className="voter-info-card">
           <div className="voter-avatar">
             <span className="avatar-text">{voterName.charAt(0).toUpperCase()}</span>
@@ -149,16 +160,16 @@ const VoterHistory = (): JSX.Element => {
                     </div>
                     {index < history.length - 1 && <div className="marker-line"></div>}
                   </div>
-                  
+
                   <div className="timeline-content">
                     <div className="timeline-card">
                       <div className="card-header">
                         <h4 className="card-title">{getHistoryTitle(item.type)}</h4>
                         <span className="card-time">{formatDateTime(item.timestamp)}</span>
                       </div>
-                      
-                      <p className="card-description">{item.description}</p>
-                      
+
+                      <p className="card-description">{item.details || 'Aktivitas tercatat.'}</p>
+
                       {item.metadata && Object.keys(item.metadata).length > 0 && (
                         <div className="card-metadata">
                           {item.metadata.method && (

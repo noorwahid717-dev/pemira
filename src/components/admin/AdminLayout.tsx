@@ -95,8 +95,8 @@ const AdminLayout = ({ children, title = 'Admin Panel' }: AdminLayoutProps): JSX
         <nav className="admin-mobile-nav" aria-label="Menu admin">
           {mobileMenuItems.map((item) => (
             <Link key={item.href} to={item.href} className={isActive(item.href, item.exact) ? 'active' : ''}>
-              <LucideIcon name={item.icon} className="nav-icon" size={22} />
-              <span className="sr-only">{item.label}</span>
+              <LucideIcon name={item.icon} className="nav-icon" size={20} />
+              <span className="mobile-label">{item.label}</span>
             </Link>
           ))}
         </nav>
