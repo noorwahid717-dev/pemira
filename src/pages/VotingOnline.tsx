@@ -46,7 +46,7 @@ const VotingOnline = (): JSX.Element => {
     const updateCanvasSize = () => {
       const rect = container.getBoundingClientRect()
       const width = Math.floor(rect.width)
-      const height = Math.min(200, Math.floor(width * 0.4)) // Maintain aspect ratio, max 200px
+      const height = Math.max(150, Math.min(200, Math.floor(width * 0.5))) // Min 150px, max 200px
       setCanvasDimensions({ width, height })
     }
 
