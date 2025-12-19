@@ -356,6 +356,32 @@ export const fetchAdminDpt = async (token: string, params: URLSearchParams, elec
 export const fetchAdminDptVoterById = async (token: string, electionVoterId: string, electionId: number = getActiveElectionId()): Promise<DPTEntry | null> => {
   try {
     const timestamp = new Date().getTime()
+
+    // Check if this is a synthetic voter_X ID (meaning election_voter_id was missing)
+    if (electionVoterId.startsWith('voter_')) {
+      const voterId = electionVoterId.replace('voter_', '')
+      // Try to find this voter via a lookup endpoint or list search
+      // First, attempt to search by voter_id in the election voters list
+      const searchParams = new URLSearchParams({ per_page: '1', page: '1' })
+      const searchResponse = await apiRequest<any>(`/admin/elections/${electionId}/voters?${searchParams.toString()}&voter_id=${voterId}&_t=${timestamp}`, { token })
+      const items = extractItems(searchResponse)
+      if (items.length > 0) {
+        const mapped = mapDptItems(items)
+        return mapped[0]
+      }
+
+      // Fallback: Try to get from base voters endpoint (if the API supports it)
+      try {
+        const voterResponse = await apiRequest<DptApiItem>(`/admin/voters/${voterId}?_t=${timestamp}`, { token })
+        const mappedItems = mapDptItems([voterResponse])
+        return mappedItems[0]
+      } catch {
+        // If all fallbacks fail, return null
+        return null
+      }
+    }
+
+    // Standard path: Use the election_voter_id directly
     const response = await apiRequest<DptApiItem>(`/admin/elections/${electionId}/voters/${electionVoterId}?_t=${timestamp}`, { token })
     const items = mapDptItems([response])
     return items[0]
