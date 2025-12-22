@@ -4,7 +4,7 @@ import AdminLayout from '../components/admin/AdminLayout'
 import { LucideIcon, type IconName } from '../components/LucideIcon'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 import { useDPTAdminStore } from '../hooks/useDPTAdminStore'
-import { deleteAdminDptVoter, fetchAdminDptVoterById } from '../services/adminDpt'
+import { deleteAdminDptVoter, exportDptCsv, fetchAdminDptVoterById } from '../services/adminDpt'
 import { updateElectionVoter } from '../services/adminElectionVoters'
 import { useActiveElection } from '../hooks/useActiveElection'
 import { useToast } from '../components/Toast'
@@ -39,6 +39,7 @@ const AdminDPTList = (): JSX.Element => {
   const { voters, total, page, limit, setPage, filters, setFilters, selected, toggleSelect, selectAll, clearSelection, refresh, loading, error } = useDPTAdminStore()
   const [deleting, setDeleting] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [openActionId, setOpenActionId] = useState<string | null>(null)
   const [signatureModalUrl, setSignatureModalUrl] = useState<string | null>(null)
   const actionDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({})
@@ -225,6 +226,52 @@ const AdminDPTList = (): JSX.Element => {
     }
   }
 
+  const buildExportParams = () => {
+    const params = new URLSearchParams()
+    if (filters.fakultas !== 'all') params.append('faculty', filters.fakultas)
+    if (filters.angkatan !== 'all') params.append('cohort_year', filters.angkatan)
+    if (filters.statusSuara !== 'all') params.append('has_voted', filters.statusSuara === 'sudah' ? 'true' : 'false')
+    if (filters.search) params.append('search', filters.search)
+    if (filters.tipe !== 'all') {
+      const voterTypeMap = { mahasiswa: 'STUDENT', dosen: 'LECTURER', staf: 'STAFF' }
+      params.append('voter_type', voterTypeMap[filters.tipe])
+    }
+    if (filters.electionVoterStatus !== 'all') {
+      params.append('status', filters.electionVoterStatus)
+    }
+    if (filters.metode !== 'all') {
+      params.append('voting_method', filters.metode === 'tps' ? 'TPS' : 'ONLINE')
+    }
+    return params
+  }
+
+  const handleExport = async () => {
+    if (!token || !activeElectionId) {
+      showToast('Token admin atau election ID tidak tersedia.', 'error')
+      return
+    }
+    setExporting(true)
+    try {
+      const params = buildExportParams()
+      const blob = await exportDptCsv(token, params.toString() ? params : undefined, activeElectionId)
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      const dateTag = new Date().toISOString().slice(0, 10)
+      link.href = url
+      link.download = `DPT_${activeElectionId}_${dateTag}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      showToast('Export DPT berhasil dimulai.', 'success')
+    } catch (err) {
+      console.error('Failed to export DPT', err)
+      showToast(`Gagal export DPT: ${(err as Error)?.message ?? 'Unknown error'}`, 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!openActionId) return
@@ -253,8 +300,8 @@ const AdminDPTList = (): JSX.Element => {
             <button className="btn-outline" type="button" onClick={() => navigate('/admin/dpt/import')}>
               + Import DPT
             </button>
-            <button className="btn-primary" type="button" onClick={() => showToast('Export data (simulasi)', 'info')}>
-              Export Data
+            <button className="btn-primary" type="button" onClick={handleExport} disabled={exporting}>
+              {exporting ? 'Menyiapkan Export...' : 'Export Data'}
             </button>
           </div>
         </div>

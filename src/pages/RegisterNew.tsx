@@ -75,6 +75,7 @@ const RegisterNew = () => {
   const formCardRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
+    if (initialLoading) return
     const hero = heroRef.current
     const card = formCardRef.current
     const reveal = (el: HTMLElement | null, delay = 0) => {
@@ -87,7 +88,7 @@ const RegisterNew = () => {
       card.style.transitionDelay = '150ms'
       card.classList.add('reveal-card')
     }
-  }, [])
+  }, [initialLoading])
 
   // Load master data on mount
   useEffect(() => {
@@ -95,6 +96,9 @@ const RegisterNew = () => {
 
     const loadMeta = async () => {
       setInitialLoading(true)
+      const fallbackTimer = window.setTimeout(() => {
+        if (!cancelled) setInitialLoading(false)
+      }, 5000)
 
       const tasks = [
         fetchCurrentElection()
@@ -174,6 +178,7 @@ const RegisterNew = () => {
       if (!cancelled) {
         setInitialLoading(false)
       }
+      window.clearTimeout(fallbackTimer)
     }
 
     void loadMeta()
