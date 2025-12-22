@@ -664,6 +664,31 @@ const DashboardPemilihHiFi = (): JSX.Element => {
       {/* Main Content */}
       <main className="dashboard-main">
         <div className="dashboard-container">
+          {/* Main Panel */}
+          <section className="panel-section">
+            {renderMainPanel()}
+          </section>
+
+          {/* Mode Panel */}
+          {renderModePanel()}
+
+          {/* Notifications */}
+          <section className="notifications-section">
+            <h2 className="section-title">
+              <LucideIcon name="bell" className="section-icon" size={24} />
+              Notifikasi
+            </h2>
+
+            <div className="notifications-list">
+              {notifications.map((notif, index) => (
+                <div key={index} className="notification-item" style={{ '--notif-index': index } as React.CSSProperties}>
+                  <span className="notification-time">[{notif.time}]</span>
+                  <span className="notification-message">{notif.message}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
           {/* Timeline Section */}
           <section className="timeline-section">
             <h2 className="section-title">
@@ -708,31 +733,6 @@ const DashboardPemilihHiFi = (): JSX.Element => {
               <span className="current-stage-value">
                 {timelineStages.find(s => s.status === 'active')?.label.toUpperCase()}
               </span>
-            </div>
-          </section>
-
-          {/* Main Panel */}
-          <section className="panel-section">
-            {renderMainPanel()}
-          </section>
-
-          {/* Mode Panel */}
-          {renderModePanel()}
-
-          {/* Notifications */}
-          <section className="notifications-section">
-            <h2 className="section-title">
-              <LucideIcon name="bell" className="section-icon" size={24} />
-              Notifikasi
-            </h2>
-
-            <div className="notifications-list">
-              {notifications.map((notif, index) => (
-                <div key={index} className="notification-item" style={{ '--notif-index': index } as React.CSSProperties}>
-                  <span className="notification-time">[{notif.time}]</span>
-                  <span className="notification-message">{notif.message}</span>
-                </div>
-              ))}
             </div>
           </section>
         </div>

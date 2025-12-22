@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import AdminLayout from '../components/admin/AdminLayout'
@@ -6,10 +6,15 @@ import { useCandidateAdminStore } from '../hooks/useCandidateAdminStore'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 import { fetchAdminCandidateDetail, generateAdminCandidateQrCode } from '../services/adminCandidates'
 import { useActiveElection } from '../hooks/useActiveElection'
-import { fetchCandidateProfileMedia } from '../services/adminCandidateMedia'
 import type { CandidateAdmin } from '../types/candidateAdmin'
 import { usePopup } from '../components/Popup'
 import '../styles/AdminCandidates.css'
+
+const splitVision = (value?: string) =>
+  (value ?? '')
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
 
 const AdminCandidatePreview = (): JSX.Element => {
   const { id } = useParams<{ id: string }>()
@@ -21,8 +26,6 @@ const AdminCandidatePreview = (): JSX.Element => {
   const candidateFromStore = id ? getCandidateById(id) : undefined
   const [candidateDetail, setCandidateDetail] = useState<CandidateAdmin | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [photoUrl, setPhotoUrl] = useState<string>('')
-  const objectUrlsRef = useRef<string[]>([])
 
   useEffect(() => {
     if (!id || !token) return
@@ -45,36 +48,6 @@ const AdminCandidatePreview = (): JSX.Element => {
   }, [id, token])
 
   const candidate = candidateDetail ?? candidateFromStore
-
-  const registerObjectUrl = (url: string) => {
-    objectUrlsRef.current.push(url)
-    return url
-  }
-
-  useEffect(() => {
-    if (!candidate || !token) return
-    if (candidate.photoUrl && candidate.photoUrl.startsWith('http')) {
-      const loadPhoto = async () => {
-        try {
-          const url = await fetchCandidateProfileMedia(token, candidate.id)
-          if (url) {
-            setPhotoUrl(registerObjectUrl(url))
-          }
-        } catch (err) {
-          console.error('Failed to fetch candidate photo', err)
-        }
-      }
-      void loadPhoto()
-    }
-  }, [candidate?.id, candidate?.photoUrl, token])
-
-  useEffect(
-    () => () => {
-      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
-      objectUrlsRef.current = []
-    },
-    [],
-  )
 
   if (!candidate) {
     return (
@@ -105,8 +78,8 @@ const AdminCandidatePreview = (): JSX.Element => {
         </div>
 
         <section className="preview-hero">
-          {photoUrl ? (
-            <img src={photoUrl} alt={candidate.name} className="preview-photo" />
+          {candidate.photoUrl ? (
+            <img src={candidate.photoUrl} alt={candidate.name} className="preview-photo" />
           ) : (
             <div className="preview-photo placeholder">Foto belum diunggah</div>
           )}
@@ -173,8 +146,19 @@ const AdminCandidatePreview = (): JSX.Element => {
 
         <section className="preview-section">
           <h3>Visi</h3>
-          <h4>{candidate.visionTitle}</h4>
-          <p>{candidate.visionDescription || candidate.longBio}</p>
+          {(() => {
+            const visionItems = splitVision(candidate.visionDescription)
+            if (visionItems.length > 1) {
+              return (
+                <ul className="vision-list">
+                  {visionItems.map((vision, index) => (
+                    <li key={`${vision}-${index}`}>{vision}</li>
+                  ))}
+                </ul>
+              )
+            }
+            return <p className="vision-text">{candidate.visionDescription || candidate.longBio}</p>
+          })()}
         </section>
 
         <section className="preview-section">

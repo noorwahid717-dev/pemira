@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { useEffect, useMemo, useState, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import AdminLayout from '../components/admin/AdminLayout'
@@ -6,7 +6,6 @@ import { useCandidateAdminStore } from '../hooks/useCandidateAdminStore'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 import { useActiveElection } from '../hooks/useActiveElection'
 import { usePopup } from '../components/Popup'
-import { fetchCandidateProfileMedia } from '../services/adminCandidateMedia'
 import { fetchCandidateQrCodeMap, type CandidateQrCode } from '../services/candidateQr'
 import { generateAdminCandidateQrCode } from '../services/adminCandidates'
 import type { CandidateStatus } from '../types/candidateAdmin'
@@ -33,51 +32,10 @@ const AdminCandidatesList = (): JSX.Element => {
   const [search, setSearch] = useState('')
   const [facultyFilter, setFacultyFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<CandidateStatus | 'all'>('all')
-  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({})
   const [qrCodes, setQrCodes] = useState<Record<string, CandidateQrCode>>({})
   const [qrLoading, setQrLoading] = useState(false)
   const [qrError, setQrError] = useState<string | undefined>(undefined)
   const [qrGeneratingId, setQrGeneratingId] = useState<string | null>(null)
-  const objectUrlsRef = useRef<string[]>([])
-
-  const registerObjectUrl = (url: string) => {
-    objectUrlsRef.current.push(url)
-    return url
-  }
-
-  const candidatesToFetch = useMemo(
-    () =>
-      candidates.filter(
-        (candidate) => candidate.photoUrl && candidate.photoUrl.startsWith('http') && !photoUrls[candidate.id]
-      ),
-    [candidates, photoUrls]
-  )
-
-  useEffect(() => {
-    if (!token || candidatesToFetch.length === 0) return
-
-    const loadPhotos = async () => {
-      for (const candidate of candidatesToFetch) {
-        try {
-          const url = await fetchCandidateProfileMedia(token, candidate.id)
-          if (url) {
-            setPhotoUrls((prev) => ({ ...prev, [candidate.id]: registerObjectUrl(url) }))
-          }
-        } catch (err) {
-          console.error(`Failed to fetch photo for candidate ${candidate.id}`, err)
-        }
-      }
-    }
-    void loadPhotos()
-  }, [candidatesToFetch, token])
-
-  useEffect(
-    () => () => {
-      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
-      objectUrlsRef.current = []
-    },
-    [],
-  )
 
   useEffect(() => {
     if (!activeElectionId) return
@@ -265,7 +223,7 @@ const AdminCandidatesList = (): JSX.Element => {
                 </tr>
               )}
               {filteredCandidates.map((candidate) => {
-                const contentCount = candidate.missions.length + candidate.programs.length + (candidate.visionTitle ? 1 : 0)
+                const contentCount = candidate.missions.length + candidate.programs.length + (candidate.visionDescription ? 1 : 0)
                 const qr = candidate.qrCode ?? qrCodes[candidate.id] ?? null
                 const qrValue = qr?.payload ?? qr?.token ?? ''
                 const canGenerateQr =
@@ -275,8 +233,8 @@ const AdminCandidatesList = (): JSX.Element => {
                 return (
                   <tr key={candidate.id}>
                     <td>
-                      {(candidate.photoUrl && photoUrls[candidate.id]) ? (
-                        <img src={photoUrls[candidate.id]} alt={candidate.name} className="candidate-thumb" />
+                      {candidate.photoUrl ? (
+                        <img src={candidate.photoUrl} alt={candidate.name} className="candidate-thumb" />
                       ) : (
                         <div className="candidate-thumb placeholder">?</div>
                       )}

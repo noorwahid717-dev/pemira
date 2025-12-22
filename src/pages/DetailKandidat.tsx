@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState, type JSX } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import Header from '../components/Header'
 import EmptyState from '../components/shared/EmptyState'
 import { fetchPublicCandidateDetail, fetchPublicCandidates } from '../services/publicCandidates'
-import { fetchPublicCandidateProfileMedia } from '../services/adminCandidateMedia'
 import { fetchCurrentElection } from '../services/publicElection'
 import type { CandidateDetail } from '../types/voting'
 import '../styles/DetailKandidat.css'
@@ -40,8 +39,11 @@ const toEmbedUrl = (raw?: string | null): string => {
 
 const DetailKandidat = (): JSX.Element => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams()
   const candidateId = Number(id)
+  const isDashboardContext = location.pathname.startsWith('/dashboard')
+  const backPath = isDashboardContext ? '/dashboard/kandidat' : '/kandidat'
 
   const [activeTab, setActiveTab] = useState<TabId>('visi')
   const [showStickyButton, setShowStickyButton] = useState(false)
@@ -51,13 +53,6 @@ const DetailKandidat = (): JSX.Element => {
   const [error, setError] = useState<string | null>(null)
   const [detailFallbackMessage, setDetailFallbackMessage] = useState<string | null>(null)
   const [electionYear, setElectionYear] = useState<number | null>(null)
-  const [photoUrl, setPhotoUrl] = useState<string>('')
-  const objectUrlsRef = useRef<string[]>([])
-
-  const registerObjectUrl = (url: string) => {
-    objectUrlsRef.current.push(url)
-    return url
-  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -148,30 +143,6 @@ const DetailKandidat = (): JSX.Element => {
   }, [candidateId])
 
   useEffect(() => {
-    if (!kandidat || photoUrl) return
-
-    const loadPhoto = async () => {
-      try {
-        const url = await fetchPublicCandidateProfileMedia(kandidat.id)
-        if (url) {
-          setPhotoUrl(registerObjectUrl(url))
-        }
-      } catch (err) {
-        console.debug(`Could not fetch photo for candidate ${kandidat.id}:`, err)
-      }
-    }
-    void loadPhoto()
-  }, [kandidat, photoUrl])
-
-  useEffect(
-    () => () => {
-      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
-      objectUrlsRef.current = []
-    },
-    [],
-  )
-
-  useEffect(() => {
     const handleScroll = () => {
       setShowStickyButton(window.scrollY > 400)
     }
@@ -202,7 +173,7 @@ const DetailKandidat = (): JSX.Element => {
             <EmptyState
               title="Kandidat tidak ditemukan"
               description={error ?? 'Kandidat yang Anda cari tidak tersedia atau sudah dihapus.'}
-              action={{ label: 'Kembali ke Daftar Kandidat', onClick: () => navigate('/kandidat') }}
+              action={{ label: 'Kembali ke Daftar Kandidat', onClick: () => navigate(backPath) }}
             />
           </div>
         </main>
@@ -216,7 +187,7 @@ const DetailKandidat = (): JSX.Element => {
 
       <main className="detail-main">
         <div className="detail-container">
-          <button className="btn-back" onClick={() => navigate('/kandidat')}>
+          <button className="btn-back" onClick={() => navigate(backPath)}>
             <span className="back-icon">←</span>
             <span>Kembali ke Daftar Kandidat</span>
           </button>
@@ -224,8 +195,8 @@ const DetailKandidat = (): JSX.Element => {
           <div className="kandidat-hero">
             <div className="hero-left">
               <div className="kandidat-photo-large">
-                {photoUrl ? (
-                  <img src={photoUrl} alt={`Foto ${kandidat.nama}`} loading="lazy" />
+                {kandidat.foto ? (
+                  <img src={kandidat.foto} alt={`Foto ${kandidat.nama}`} loading="lazy" />
                 ) : (
                   <div className="photo-placeholder-large">{kandidat.nama.charAt(0)}</div>
                 )}

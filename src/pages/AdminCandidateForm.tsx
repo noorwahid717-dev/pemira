@@ -10,7 +10,6 @@ import {
   deleteCandidateMedia,
   deleteCandidateProfileMedia,
   fetchCandidateMediaFile,
-  fetchCandidateProfileMedia,
   uploadCandidateMedia,
   uploadCandidateProfileMedia,
 } from '../services/adminCandidateMedia'
@@ -46,48 +45,56 @@ const steps: { id: StepId; label: string; helper: string }[] = [
 
 const emptyProgram: CandidateProgramAdmin = { id: '', title: '', description: '', category: '' }
 
-const CandidatePreviewMini = ({ data }: { data: CandidateAdmin }) => (
-  <div className="mini-preview">
-    <div className="mini-preview-hero">
-      {data.photoUrl ? <img src={data.photoUrl} alt={data.name} /> : <div className="mini-photo-placeholder">Foto kandidat</div>}
-      <div>
-        <span className="mini-number">No. {data.number ? data.number.toString().padStart(2, '0') : '--'}</span>
-        <h3>{data.name || 'Nama Kandidat'}</h3>
-        {data.tagline && <p className="mini-tagline">{data.tagline}</p>}
-        <p className="mini-meta">
-          {data.faculty || 'Fakultas'} · {data.programStudi || 'Program Studi'} · Angkatan {data.angkatan || '—'}
-        </p>
-      </div>
-    </div>
-    {data.shortBio && <p className="mini-bio">{data.shortBio}</p>}
-    <div className="mini-section">
-      <h4>Visi</h4>
-      <p>{data.visionTitle || 'Judul visi'}</p>
-      <p className="mini-muted">{data.visionDescription || data.longBio || 'Deskripsi visi muncul di sini.'}</p>
-    </div>
-    <div className="mini-section">
-      <h4>Misi</h4>
-      <ul>
-        {(data.missions.length ? data.missions : ['Masukkan misi kandidat']).slice(0, 4).map((mission, idx) => (
-          <li key={`${mission}-${idx}`}>{mission}</li>
-        ))}
-      </ul>
-    </div>
-    {data.programs.length > 0 && (
-      <div className="mini-section">
-        <h4>Program Utama</h4>
-        <div className="mini-programs">
-          {data.programs.slice(0, 3).map((program) => (
-            <article key={program.id}>
-              <strong>{program.title || 'Program'}</strong>
-              <p className="mini-muted">{program.description || 'Deskripsi singkat program.'}</p>
-            </article>
-          ))}
+const parseVisionItems = (value: string) =>
+  value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+const CandidatePreviewMini = ({ data }: { data: CandidateAdmin }) => {
+  const visionItems = parseVisionItems(data.visionDescription || '')
+  return (
+    <div className="mini-preview">
+      <div className="mini-preview-hero">
+        {data.photoUrl ? <img src={data.photoUrl} alt={data.name} /> : <div className="mini-photo-placeholder">Foto kandidat</div>}
+        <div>
+          <span className="mini-number">No. {data.number ? data.number.toString().padStart(2, '0') : '--'}</span>
+          <h3>{data.name || 'Nama Kandidat'}</h3>
+          {data.tagline && <p className="mini-tagline">{data.tagline}</p>}
+          <p className="mini-meta">
+            {data.faculty || 'Fakultas'} · {data.programStudi || 'Program Studi'} · Angkatan {data.angkatan || '—'}
+          </p>
         </div>
       </div>
-    )}
-  </div>
-)
+      {data.shortBio && <p className="mini-bio">{data.shortBio}</p>}
+      <div className="mini-section">
+        <h4>Visi</h4>
+        <p className="mini-muted">{visionItems[0] || data.longBio || 'Deskripsi visi muncul di sini.'}</p>
+      </div>
+      <div className="mini-section">
+        <h4>Misi</h4>
+        <ul>
+          {(data.missions.length ? data.missions : ['Masukkan misi kandidat']).slice(0, 4).map((mission, idx) => (
+            <li key={`${mission}-${idx}`}>{mission}</li>
+          ))}
+        </ul>
+      </div>
+      {data.programs.length > 0 && (
+        <div className="mini-section">
+          <h4>Program Utama</h4>
+          <div className="mini-programs">
+            {data.programs.slice(0, 3).map((program) => (
+              <article key={program.id}>
+                <strong>{program.title || 'Program'}</strong>
+                <p className="mini-muted">{program.description || 'Deskripsi singkat program.'}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const AdminCandidateForm = (): JSX.Element => {
   const navigate = useNavigate()
@@ -101,6 +108,8 @@ const AdminCandidateForm = (): JSX.Element => {
   const existingCandidate = id ? getCandidateById(id) : undefined
 
   const [formData, setFormData] = useState<CandidateAdmin>(existingCandidate ?? createEmptyCandidate())
+  const [visionDraft, setVisionDraft] = useState('')
+  const [visionItems, setVisionItems] = useState<string[]>([])
   const [missionDraft, setMissionDraft] = useState('')
   const [programDraft, setProgramDraft] = useState<CandidateProgramAdmin>(emptyProgram)
   const [stepIndex, setStepIndex] = useState(0)
@@ -121,6 +130,10 @@ const AdminCandidateForm = (): JSX.Element => {
       setFormData(existingCandidate)
     }
   }, [existingCandidate])
+
+  useEffect(() => {
+    setVisionItems(parseVisionItems(formData.visionDescription ?? ''))
+  }, [formData.visionDescription])
 
   useEffect(() => {
     if (!editing || !id || !token) return
@@ -152,6 +165,11 @@ const AdminCandidateForm = (): JSX.Element => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  const updateVisionItems = (next: string[]) => {
+    setVisionItems(next)
+    updateField('visionDescription', next.join('\n'))
+  }
+
   const registerObjectUrl = (url: string) => {
     objectUrlsRef.current.push(url)
     return url
@@ -169,19 +187,12 @@ const AdminCandidateForm = (): JSX.Element => {
 
   useEffect(() => {
     if (!token || !formData.id) return
-    const shouldFetchPhoto = Boolean(formData.photoMediaId && !formData.photoUrl)
     const mediaToFetch = formData.media.filter((item) => !item.url && item.id)
-    if (!shouldFetchPhoto && mediaToFetch.length === 0) return
+    if (mediaToFetch.length === 0) return
     let cancelled = false
     const loadMedia = async () => {
       setMediaLoading(true)
       try {
-        if (shouldFetchPhoto) {
-          const url = await fetchCandidateProfileMedia(token, formData.id)
-          if (!cancelled && url) {
-            setFormData((prev) => ({ ...prev, photoUrl: registerObjectUrl(url) }))
-          }
-        }
         if (mediaToFetch.length) {
           for (const media of mediaToFetch) {
             const url = await fetchCandidateMediaFile(token, formData.id, media.id)
@@ -206,7 +217,7 @@ const AdminCandidateForm = (): JSX.Element => {
     return () => {
       cancelled = true
     }
-  }, [formData.id, formData.media, formData.photoMediaId, formData.photoUrl, missingMediaIds, token])
+  }, [formData.id, formData.media, missingMediaIds, token])
 
   useEffect(
     () => () => {
@@ -220,6 +231,32 @@ const AdminCandidateForm = (): JSX.Element => {
     if (!missionDraft.trim()) return
     updateField('missions', [...formData.missions, missionDraft.trim()])
     setMissionDraft('')
+  }
+
+  const addVision = () => {
+    if (!visionDraft.trim()) return
+    updateVisionItems([...visionItems, visionDraft.trim()])
+    setVisionDraft('')
+  }
+
+  const removeVision = async (index: number) => {
+    const confirmed = await showPopup({
+      title: 'Hapus Visi',
+      message: 'Hapus poin visi ini?',
+      type: 'warning',
+      confirmText: 'Hapus',
+      cancelText: 'Batal',
+    })
+    if (!confirmed) return
+    updateVisionItems(visionItems.filter((_, idx) => idx !== index))
+  }
+
+  const moveVision = (index: number, direction: 'up' | 'down') => {
+    const target = direction === 'up' ? index - 1 : index + 1
+    if (target < 0 || target >= visionItems.length) return
+    const next = [...visionItems]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    updateVisionItems(next)
   }
 
   const removeMission = async (index: number) => {
@@ -309,10 +346,16 @@ const AdminCandidateForm = (): JSX.Element => {
         try {
           setMediaLoading(true)
           const uploaded = await uploadCandidateProfileMedia(token, formData.id, file)
-          const photoUrl = await fetchCandidateProfileMedia(token, formData.id)
+          let remotePhotoUrl: string | undefined
+          try {
+            const updatedDetail = await fetchAdminCandidateDetail(token, String(formData.id))
+            remotePhotoUrl = updatedDetail.photoUrl || undefined
+          } catch {
+            remotePhotoUrl = undefined
+          }
           setFormData((prev) => ({
             ...prev,
-            photoUrl: photoUrl ? registerObjectUrl(photoUrl) : prev.photoUrl,
+            photoUrl: remotePhotoUrl || prev.photoUrl,
             photoMediaId: uploaded.id ?? prev.photoMediaId,
           }))
           setPendingProfile(null)
@@ -409,8 +452,8 @@ const AdminCandidateForm = (): JSX.Element => {
       }
     }
     if (step === 'vision') {
-      if (!formData.visionTitle.trim()) {
-        setError('Judul visi wajib diisi.')
+      if (visionItems.length === 0) {
+        setError('Visi wajib diisi.')
         return false
       }
     }
@@ -450,11 +493,17 @@ const AdminCandidateForm = (): JSX.Element => {
         if (pendingProfile?.file) {
           try {
             const uploaded = await uploadCandidateProfileMedia(token, savedCandidate.id, pendingProfile.file)
-            const photoUrl = await fetchCandidateProfileMedia(token, savedCandidate.id)
+            let remotePhotoUrl = savedCandidate.photoUrl
+            try {
+              const updatedDetail = await fetchAdminCandidateDetail(token, String(savedCandidate.id))
+              remotePhotoUrl = updatedDetail.photoUrl || remotePhotoUrl
+            } catch {
+              // keep local preview
+            }
             savedCandidate = {
               ...savedCandidate,
               photoMediaId: uploaded.id ?? savedCandidate.photoMediaId,
-              photoUrl: photoUrl ? registerObjectUrl(photoUrl) : savedCandidate.photoUrl,
+              photoUrl: remotePhotoUrl,
             }
           } catch (err) {
             console.error('Failed to upload pending profile', err)
@@ -510,11 +559,17 @@ const AdminCandidateForm = (): JSX.Element => {
       if (pendingProfile?.file) {
         try {
           const uploaded = await uploadCandidateProfileMedia(token, savedCandidate.id, pendingProfile.file)
-          const photoUrl = await fetchCandidateProfileMedia(token, savedCandidate.id)
+          let remotePhotoUrl = savedCandidate.photoUrl
+          try {
+            const updatedDetail = await fetchAdminCandidateDetail(token, String(savedCandidate.id))
+            remotePhotoUrl = updatedDetail.photoUrl || remotePhotoUrl
+          } catch {
+            // keep local preview
+          }
           savedCandidate = {
             ...savedCandidate,
             photoMediaId: uploaded.id ?? savedCandidate.photoMediaId,
-            photoUrl: photoUrl ? registerObjectUrl(photoUrl) : savedCandidate.photoUrl,
+            photoUrl: remotePhotoUrl,
           }
         } catch (err) {
           console.error('Failed to upload pending profile', err)
@@ -781,17 +836,60 @@ const AdminCandidateForm = (): JSX.Element => {
                 <header>
                   <p className="pill">Step 3 · Visi & Misi</p>
                   <h2>Visi besar dan misi</h2>
-                  <p className="muted">Visi cukup satu kalimat utama. Misi bisa beberapa poin.</p>
+                  <p className="muted">Visi dan misi bisa terdiri dari beberapa poin.</p>
                 </header>
-                <div className="form-grid">
-                  <label>
-                    Judul Visi *
-                    <input type="text" value={formData.visionTitle} onChange={(event) => updateField('visionTitle', event.target.value)} />
-                  </label>
-                  <label>
-                    Deskripsi Visi
-                    <textarea value={formData.visionDescription} onChange={(event) => updateField('visionDescription', event.target.value)} />
-                  </label>
+                <div className="missions">
+                  <div className="missions-header">
+                    <div>
+                      <h3>Visi Kandidat</h3>
+                      <p className="muted">Tambahkan poin visi yang ingin disampaikan kandidat.</p>
+                    </div>
+                    <div className="missions-actions">
+                      <input
+                        type="text"
+                        placeholder="Contoh: Kampus inklusif dan berdaya"
+                        value={visionDraft}
+                        onChange={(event) => setVisionDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault()
+                            addVision()
+                          }
+                        }}
+                      />
+                      <button type="button" className="btn-primary" onClick={addVision}>
+                        + Tambah Visi
+                      </button>
+                    </div>
+                  </div>
+                  <div className="missions-list">
+                    {visionItems.length === 0 && <p className="muted">Belum ada visi. Tambahkan minimal 1.</p>}
+                    {visionItems.map((vision, index) => (
+                      <div key={`${vision}-${index}`} className="mission-card">
+                        <div className="drag-handle" aria-hidden>↕</div>
+                        <input
+                          type="text"
+                          value={vision}
+                          onChange={(event) => {
+                            const next = [...visionItems]
+                            next[index] = event.target.value
+                            updateVisionItems(next)
+                          }}
+                        />
+                        <div className="mission-actions">
+                          <button type="button" className="btn-link" onClick={() => moveVision(index, 'up')}>
+                            ↑
+                          </button>
+                          <button type="button" className="btn-link" onClick={() => moveVision(index, 'down')}>
+                            ↓
+                          </button>
+                          <button type="button" className="btn-link danger" onClick={() => removeVision(index)}>
+                            Hapus
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="missions">
                   <div className="missions-header">
@@ -1067,8 +1165,15 @@ const AdminCandidateForm = (): JSX.Element => {
 
                 <section className="preview-section">
                   <h3>Visi</h3>
-                  <h4>{formData.visionTitle || 'Judul visi'}</h4>
-                  <p>{formData.visionDescription || formData.longBio || 'Deskripsi visi akan muncul di sini.'}</p>
+                  {visionItems.length > 1 ? (
+                    <ul className="vision-list">
+                      {visionItems.map((vision, index) => (
+                        <li key={`${vision}-${index}`}>{vision}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="vision-text">{formData.visionDescription || formData.longBio || 'Deskripsi visi akan muncul di sini.'}</p>
+                  )}
                 </section>
 
                 <section className="preview-section">

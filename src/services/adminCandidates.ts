@@ -238,7 +238,9 @@ export const buildCandidatePayload = (candidate: Partial<CandidateAdmin>) => {
   const pdfUrl = media.find((item) => item.type === 'pdf')?.url
   const pdf = pdfUrl && !pdfUrl.startsWith('blob:') ? pdfUrl : undefined
 
-  const vision = candidate.visionDescription ?? candidate.visionTitle
+  const visionDescription = candidate.visionDescription?.trim()
+  const visionTitle = candidate.visionTitle?.trim()
+  const vision = visionDescription || visionTitle || ''
 
   // Only send photo_url if there's no photo_media_id (backward compatibility)
   // When photo_media_id exists, the API should use that instead.

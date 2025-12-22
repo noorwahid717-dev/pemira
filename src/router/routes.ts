@@ -29,6 +29,7 @@ const TPSPanelSettings = lazyPage(() => import('../pages/TPSPanelSettings'))
 const VoterQRScanner = lazyPage(() => import('../pages/VoterQRScanner'))
 const VoterHistory = lazyPage(() => import('../pages/VoterHistory'))
 const VoterCandidates = lazyPage(() => import('../pages/VoterCandidates'))
+const VoterCandidateDetail = lazyPage(() => import('../pages/VoterCandidateDetail'))
 const VoterHelp = lazyPage(() => import('../pages/VoterHelp'))
 const VoterProfile = lazyPage(() => import('../pages/VoterProfile'))
 const ElectionResults = lazyPage(() => import('../pages/ElectionResults'))
@@ -73,6 +74,7 @@ export const appRoutes: RouteDefinition[] = [
   { id: 'dashboard', path: '/dashboard', Component: DashboardPemilihHiFi, requiresAuth: true },
   { id: 'voter-history', path: '/dashboard/riwayat', Component: VoterHistory, requiresAuth: true },
   { id: 'voter-candidates', path: '/dashboard/kandidat', Component: VoterCandidates, requiresAuth: true },
+  { id: 'voter-candidate-detail', path: '/dashboard/kandidat/detail/:id', Component: VoterCandidateDetail, requiresAuth: true },
   { id: 'voter-help', path: '/dashboard/bantuan', Component: VoterHelp, requiresAuth: true },
   { id: 'voter-profile', path: '/dashboard/profil', Component: VoterProfile, requiresAuth: true },
   { id: 'candidates', path: '/kandidat', Component: DaftarKandidat },

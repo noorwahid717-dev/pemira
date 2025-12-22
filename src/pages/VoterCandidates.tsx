@@ -39,7 +39,7 @@ const VoterCandidates = (): JSX.Element => {
   }
 
   const handleViewDetail = (candidateId: number) => {
-    navigate(`/kandidat/detail/${candidateId}`)
+    navigate(`/dashboard/kandidat/detail/${candidateId}`)
   }
 
   const voterName = dashboardData.user?.profile?.name || mahasiswa?.nama || 'Pemilih'

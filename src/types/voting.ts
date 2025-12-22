@@ -8,6 +8,9 @@ export type Candidate = {
   prodi: string
   angkatan: string
   foto: string
+  tagline?: string
+  visi?: string
+  misi?: string[]
 }
 
 export type CandidateProgram = {

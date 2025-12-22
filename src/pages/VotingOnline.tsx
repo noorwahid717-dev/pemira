@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import SignatureCanvas from 'react-signature-canvas'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useVotingSession } from '../hooks/useVotingSession'
 import { useDashboardPemilih } from '../hooks/useDashboardPemilih'
 import { apiRequest } from '../utils/apiClient'
@@ -9,19 +9,48 @@ import { getActiveElectionId } from '../state/activeElection'
 import type { Candidate, VotingReceipt } from '../types/voting'
 import DashboardHeader from '../components/dashboard/DashboardHeader'
 import DashboardFooter from '../components/dashboard/DashboardFooter'
-import { fetchPublicCandidates } from '../services/publicCandidates'
+import { fetchPublicCandidateDetail, fetchPublicCandidates } from '../services/publicCandidates'
 import '../styles/VotingOnline.css'
 import '../styles/DashboardPemilihHiFi.css' // Import Dashboard styles for layout
 
 type VotingStep = 1 | 2 | 3 | 4
+type CandidateDetailResponse = Awaited<ReturnType<typeof fetchPublicCandidateDetail>>
 
 const formatToken = (): string => {
   const token = Math.random().toString(36).slice(2, 14)
   return `${token.slice(0, 4)}-${token.slice(4, 8)}-${token.slice(8, 12)}`
 }
 
+const mergeCandidateDetail = (candidate: Candidate, detail: CandidateDetailResponse): Candidate => {
+  const detailVision = detail.vision?.trim()
+  const detailMissions = Array.isArray(detail.missions)
+    ? detail.missions.map((mission) => mission.trim()).filter(Boolean)
+    : []
+
+  return {
+    ...candidate,
+    tagline: detail.tagline?.trim() || candidate.tagline || '',
+    visi: detailVision || candidate.visi || '',
+    misi: detailMissions.length > 0 ? detailMissions : candidate.misi || [],
+  }
+}
+
+const getVisionSummary = (candidate: Candidate): string => {
+  const visi = candidate.visi?.trim() ?? ''
+  const misi = candidate.misi?.find((mission) => mission.trim())?.trim() ?? ''
+  const summary = visi || misi
+
+  if (!summary) {
+    return 'Visi & Misi: belum tersedia'
+  }
+
+  const clipped = summary.length > 120 ? `${summary.slice(0, 117)}...` : summary
+  return `Visi & Misi: ${clipped}`
+}
+
 const VotingOnline = (): JSX.Element => {
   const { showToast } = useToast()
+  const navigate = useNavigate()
   const { session, mahasiswa, updateSession } = useVotingSession()
   const dashboardData = useDashboardPemilih(session?.accessToken || null)
 
@@ -104,19 +133,39 @@ const VotingOnline = (): JSX.Element => {
   // Fetch candidates
   // Fetch candidates
   useEffect(() => {
+    const controller = new AbortController()
     const loadCandidates = async () => {
       try {
         setLoadingCandidates(true)
-        const data = await fetchPublicCandidates({ token: session?.accessToken })
-        setCandidates(data)
+        const data = await fetchPublicCandidates({ token: session?.accessToken, signal: controller.signal })
+        if (controller.signal.aborted) return
+
+        const detailResults = await Promise.allSettled(
+          data.map((candidate) =>
+            fetchPublicCandidateDetail(candidate.id, { signal: controller.signal, token: session?.accessToken }),
+          ),
+        )
+        if (controller.signal.aborted) return
+
+        const enriched = data.map((candidate, index) => {
+          const detailResult = detailResults[index]
+          if (detailResult.status !== 'fulfilled') return candidate
+          return mergeCandidateDetail(candidate, detailResult.value)
+        })
+
+        setCandidates(enriched)
       } catch (err) {
+        if ((err as Error).name === 'AbortError') return
         console.error('Failed to load candidates:', err)
         alert('Gagal memuat data kandidat. Silakan refresh halaman.')
       } finally {
-        setLoadingCandidates(false)
+        if (!controller.signal.aborted) {
+          setLoadingCandidates(false)
+        }
       }
     }
     loadCandidates()
+    return () => controller.abort()
   }, [session?.accessToken])
 
 
@@ -375,15 +424,27 @@ const VotingOnline = (): JSX.Element => {
                           <div className="kandidat-info">
                             <div className="candidate-number">PASLON {kandidat.nomorUrut.toString().padStart(2, '0')}</div>
                             <h3>{kandidat.nama}</h3>
-                            <p className="visi-ringkas">Visi & Misi: Membangun kampus yang inklusif dan berprestasi</p>
+                            <p className="visi-ringkas">{getVisionSummary(kandidat)}</p>
                           </div>
                         </div>
-                        <button
-                          className={`btn-select ${selectedKandidat?.id === kandidat.id ? 'selected' : ''}`}
-                          type="button"
-                        >
-                          {selectedKandidat?.id === kandidat.id ? '✓ Dipilih' : 'PILIH'}
-                        </button>
+                        <div className="kandidat-actions">
+                          <button
+                            className="btn-detail"
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              navigate(`/dashboard/kandidat/detail/${kandidat.id}`)
+                            }}
+                          >
+                            Lihat Detail
+                          </button>
+                          <button
+                            className={`btn-select ${selectedKandidat?.id === kandidat.id ? 'selected' : ''}`}
+                            type="button"
+                          >
+                            {selectedKandidat?.id === kandidat.id ? '✓ Dipilih' : 'PILIH'}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

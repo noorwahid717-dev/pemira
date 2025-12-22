@@ -10,6 +10,9 @@ type PublicCandidateResponse = {
   study_program_name?: string
   cohort_year?: number
   photo_url?: string
+  tagline?: string
+  vision?: string
+  missions?: string[]
 }
 
 type PublicCandidateDetailResponse = PublicCandidateResponse & {
@@ -38,6 +41,9 @@ const mapCandidate = (item: PublicCandidateResponse): Candidate => ({
   prodi: item.study_program_name ?? '',
   angkatan: item.cohort_year?.toString() ?? '',
   foto: item.photo_url ?? '',
+  tagline: item.tagline ?? '',
+  visi: item.vision ?? '',
+  misi: item.missions ?? [],
 })
 
 export const fetchPublicCandidates = async (options?: {

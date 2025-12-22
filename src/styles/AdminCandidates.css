@@ -522,6 +522,18 @@ textarea {
   gap: 0.6rem;
 }
 
+.vision-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  display: grid;
+  gap: 0.5rem;
+  color: #4b5563;
+}
+
+.vision-text {
+  white-space: pre-line;
+}
+
 .mission-card {
   background: #f8fafc;
   border: 1px solid var(--admin-color-neutral-200, #e5e7eb);

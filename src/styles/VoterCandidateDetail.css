@@ -1,0 +1,21 @@
+.voter-candidate-detail-page .candidate-detail-content {
+  padding: 0 20px 24px;
+}
+
+.voter-candidate-detail-page .detail-container {
+  max-width: 1100px;
+}
+
+.voter-candidate-detail-page .candidate-detail-empty {
+  padding: 0 20px;
+}
+
+.voter-candidate-detail-page .kandidat-hero {
+  margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .voter-candidate-detail-page .candidate-detail-content {
+    padding: 0 16px 24px;
+  }
+}
