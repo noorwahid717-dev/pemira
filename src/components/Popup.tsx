@@ -9,12 +9,14 @@ export interface PopupOptions {
     confirmText?: string
     cancelText?: string
     showCancel?: boolean
+    requiresInput?: boolean
+    inputPlaceholder?: string
     onConfirm?: () => void
     onCancel?: () => void
 }
 
 interface PopupContextType {
-    showPopup: (options: PopupOptions) => Promise<boolean>
+    showPopup: (options: PopupOptions) => Promise<boolean | string | null>
     hidePopup: () => void
 }
 
@@ -34,19 +36,22 @@ interface PopupProviderProps {
 
 export const PopupProvider = ({ children }: PopupProviderProps) => {
     const [popup, setPopup] = useState<PopupOptions | null>(null)
-    const [resolvePromise, setResolvePromise] = useState<((value: boolean) => void) | null>(null)
+    const [resolvePromise, setResolvePromise] = useState<((value: boolean | string | null) => void) | null>(null)
+    const [inputValue, setInputValue] = useState<string>('')
 
-    const showPopup = (options: PopupOptions): Promise<boolean> => {
+    const showPopup = (options: PopupOptions): Promise<boolean | string | null> => {
         return new Promise((resolve) => {
             setPopup(options)
+            setInputValue('')
             setResolvePromise(() => resolve)
         })
     }
 
     const hidePopup = () => {
         setPopup(null)
+        setInputValue('')
         if (resolvePromise) {
-            resolvePromise(false)
+            resolvePromise(null)
             setResolvePromise(null)
         }
     }
@@ -57,9 +62,10 @@ export const PopupProvider = ({ children }: PopupProviderProps) => {
         }
         setPopup(null)
         if (resolvePromise) {
-            resolvePromise(true)
+            resolvePromise(popup?.requiresInput ? inputValue : true)
             setResolvePromise(null)
         }
+        setInputValue('')
     }
 
     const handleCancel = () => {
@@ -68,9 +74,10 @@ export const PopupProvider = ({ children }: PopupProviderProps) => {
         }
         setPopup(null)
         if (resolvePromise) {
-            resolvePromise(false)
+            resolvePromise(null)
             setResolvePromise(null)
         }
+        setInputValue('')
     }
 
     return (
@@ -79,6 +86,8 @@ export const PopupProvider = ({ children }: PopupProviderProps) => {
             {popup && (
                 <PopupModal
                     popup={popup}
+                    inputValue={inputValue}
+                    setInputValue={setInputValue}
                     onConfirm={handleConfirm}
                     onCancel={handleCancel}
                     onClose={hidePopup}
@@ -90,12 +99,14 @@ export const PopupProvider = ({ children }: PopupProviderProps) => {
 
 interface PopupModalProps {
     popup: PopupOptions
+    inputValue: string
+    setInputValue: (value: string) => void
     onConfirm: () => void
     onCancel: () => void
     onClose: () => void
 }
 
-const PopupModal = ({ popup, onConfirm, onCancel, onClose }: PopupModalProps) => {
+const PopupModal = ({ popup, inputValue, setInputValue, onConfirm, onCancel, onClose }: PopupModalProps) => {
     const handleBackdropClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
             onClose()
@@ -105,7 +116,7 @@ const PopupModal = ({ popup, onConfirm, onCancel, onClose }: PopupModalProps) =>
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Escape') {
             onClose()
-        } else if (e.key === 'Enter') {
+        } else if (e.key === 'Enter' && !popup.requiresInput) {
             onConfirm()
         }
     }
@@ -124,6 +135,24 @@ const PopupModal = ({ popup, onConfirm, onCancel, onClose }: PopupModalProps) =>
                         {getIcon(popup.type || 'info')}
                     </div>
                     <p className="popup-message">{popup.message}</p>
+                    {popup.requiresInput && (
+                        <input
+                            type="text"
+                            className="popup-input"
+                            placeholder={popup.inputPlaceholder || 'Masukkan teks...'}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            autoFocus
+                            style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                marginTop: '12px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px',
+                                fontSize: '14px'
+                            }}
+                        />
+                    )}
                 </div>
                 <div className="popup-footer">
                     {popup.showCancel !== false && (
@@ -131,7 +160,7 @@ const PopupModal = ({ popup, onConfirm, onCancel, onClose }: PopupModalProps) =>
                             {popup.cancelText || 'Batal'}
                         </button>
                     )}
-                    <button className="popup-btn popup-btn-primary" onClick={onConfirm} autoFocus>
+                    <button className="popup-btn popup-btn-primary" onClick={onConfirm} autoFocus={!popup.requiresInput}>
                         {popup.confirmText || 'OK'}
                     </button>
                 </div>

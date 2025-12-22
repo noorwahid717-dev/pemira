@@ -5,7 +5,7 @@ import { LucideIcon, type IconName } from '../components/LucideIcon'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 import { useDPTAdminStore } from '../hooks/useDPTAdminStore'
 import { deleteAdminDptVoter, exportDptCsv, fetchAdminDptVoterById } from '../services/adminDpt'
-import { updateElectionVoter } from '../services/adminElectionVoters'
+import { updateElectionVoter, blacklistVoter, unblacklistVoter } from '../services/adminElectionVoters'
 import { useActiveElection } from '../hooks/useActiveElection'
 import { useToast } from '../components/Toast'
 import { usePopup } from '../components/Popup'
@@ -202,6 +202,60 @@ const AdminDPTList = (): JSX.Element => {
     setUpdating(false)
   }
 
+  const handleBlacklistVoter = async (voterId: string, voterName: string) => {
+    if (!token || !activeElectionId) return
+
+    const reason = await showPopup({
+      title: 'Konfirmasi Blacklist',
+      message: `Blacklist pemilih "${voterName}"?\n\nPemilih yang di-blacklist tidak dapat login dan statusnya akan menjadi BLOCKED.`,
+      type: 'warning',
+      confirmText: 'Ya, Blacklist',
+      cancelText: 'Batal',
+      requiresInput: true,
+      inputPlaceholder: 'Alasan blacklist (opsional)'
+    })
+    
+    if (reason === null || reason === undefined) return
+
+    setUpdating(true)
+    try {
+      await blacklistVoter(token, parseInt(voterId), reason || undefined, activeElectionId)
+      await refresh()
+      showToast(`${voterName} berhasil di-blacklist`, 'success')
+    } catch (err) {
+      console.error('Failed to blacklist voter', err)
+      showToast('Gagal blacklist pemilih: ' + ((err as any)?.message || 'Unknown error'), 'error')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleUnblacklistVoter = async (voterId: string, voterName: string) => {
+    if (!token || !activeElectionId) return
+
+    const confirmed = await showPopup({
+      title: 'Konfirmasi Unblacklist',
+      message: `Hapus blacklist untuk "${voterName}"?\n\nPemilih akan dapat login kembali dan statusnya akan diubah.`,
+      type: 'info',
+      confirmText: 'Ya, Hapus Blacklist',
+      cancelText: 'Batal'
+    })
+    
+    if (!confirmed) return
+
+    setUpdating(true)
+    try {
+      await unblacklistVoter(token, parseInt(voterId), activeElectionId)
+      await refresh()
+      showToast(`Blacklist ${voterName} berhasil dihapus`, 'success')
+    } catch (err) {
+      console.error('Failed to unblacklist voter', err)
+      showToast('Gagal hapus blacklist: ' + ((err as any)?.message || 'Unknown error'), 'error')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   const handleViewSignature = async (voter: any) => {
     if (voter.digitalSignature) {
       setSignatureModalUrl(voter.digitalSignature)
@@ -228,19 +282,20 @@ const AdminDPTList = (): JSX.Element => {
 
   const buildExportParams = () => {
     const params = new URLSearchParams()
-    if (filters.fakultas !== 'all') params.append('faculty', filters.fakultas)
-    if (filters.angkatan !== 'all') params.append('cohort_year', filters.angkatan)
-    if (filters.statusSuara !== 'all') params.append('has_voted', filters.statusSuara === 'sudah' ? 'true' : 'false')
     if (filters.search) params.append('search', filters.search)
     if (filters.tipe !== 'all') {
       const voterTypeMap = { mahasiswa: 'STUDENT', dosen: 'LECTURER', staf: 'STAFF' }
       params.append('voter_type', voterTypeMap[filters.tipe])
     }
-    if (filters.electionVoterStatus !== 'all') {
+    if (filters.electionVoterStatus === 'PENDING' || filters.electionVoterStatus === 'VERIFIED') {
       params.append('status', filters.electionVoterStatus)
     }
     if (filters.metode !== 'all') {
       params.append('voting_method', filters.metode === 'tps' ? 'TPS' : 'ONLINE')
+    }
+    if (filters.fakultas !== 'all') {
+      const facultyCode = voters.find((voter) => voter.fakultas === filters.fakultas)?.fakultasCode
+      if (facultyCode) params.append('faculty_code', facultyCode)
     }
     return params
   }
@@ -412,22 +467,20 @@ const AdminDPTList = (): JSX.Element => {
               )}
               {filteredVoters.map((voter, idx) => {
                 const rowActions = [
-                  voter.electionVoterStatus === 'PENDING'
+                  voter.electionVoterStatus !== 'BLOCKED'
                     ? {
-                      key: 'verify',
-                      label: 'Verifikasi',
-                      icon: 'shieldCheck',
-                      onClick: () => void handleUpdateStatus(voter.id, 'VERIFIED', voter.nama)
+                      key: 'blacklist',
+                      label: 'Blacklist',
+                      icon: 'ban',
+                      onClick: () => void handleBlacklistVoter(voter.id, voter.nama),
+                      variant: 'danger'
                     }
-                    : null,
-                  voter.electionVoterStatus === 'VERIFIED'
-                    ? {
-                      key: 'reject',
-                      label: 'Tolak Verifikasi',
-                      icon: 'xCircle',
-                      onClick: () => void handleUpdateStatus(voter.id, 'REJECTED', voter.nama)
-                    }
-                    : null,
+                    : {
+                      key: 'unblacklist',
+                      label: 'Hapus Blacklist',
+                      icon: 'checkCircle',
+                      onClick: () => void handleUnblacklistVoter(voter.id, voter.nama)
+                    },
                   {
                     key: 'detail',
                     label: 'Detail',

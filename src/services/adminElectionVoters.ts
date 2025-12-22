@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../config/env'
 import { getActiveElectionId } from '../state/activeElection'
 import { apiRequest } from '../utils/apiClient'
 
@@ -194,8 +195,7 @@ export const importVotersCsv = async (
   const formData = new FormData()
   formData.append('file', file)
   
-  const baseUrl = import.meta.env.VITE_API_URL || ''
-  const response = await fetch(`${baseUrl}/api/v1/admin/elections/${electionId}/voters/import`, {
+  const response = await fetch(`${API_BASE_URL}/admin/elections/${electionId}/voters/import`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -221,12 +221,14 @@ export const exportVotersCsv = async (
   filters?: URLSearchParams,
   electionId: number = getActiveElectionId()
 ): Promise<Blob> => {
-  const queryString = filters ? `?${filters.toString()}` : ''
-  const baseUrl = import.meta.env.VITE_API_URL || ''
-  const response = await fetch(`${baseUrl}/api/v1/admin/elections/${electionId}/voters/export${queryString}`, {
+  const exportParams = filters ? new URLSearchParams(filters.toString()) : new URLSearchParams()
+  if (!exportParams.has('format')) exportParams.set('format', 'xlsx')
+  const queryString = exportParams.toString() ? `?${exportParams.toString()}` : ''
+  const response = await fetch(`${API_BASE_URL}/admin/elections/${electionId}/voters/export${queryString}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     },
   })
   
@@ -235,4 +237,42 @@ export const exportVotersCsv = async (
   }
   
   return response.blob()
+}
+
+/**
+ * Blacklist voter
+ * POST /admin/elections/{election_id}/voters/{voter_id}/blacklist
+ */
+export const blacklistVoter = async (
+  token: string,
+  voterId: number,
+  reason?: string,
+  electionId: number = getActiveElectionId()
+): Promise<void> => {
+  await apiRequest(
+    `/admin/elections/${electionId}/voters/${voterId}/blacklist`,
+    {
+      method: 'POST',
+      token,
+      body: reason ? { reason } : undefined,
+    }
+  )
+}
+
+/**
+ * Unblacklist voter
+ * POST /admin/elections/{election_id}/voters/{voter_id}/unblacklist
+ */
+export const unblacklistVoter = async (
+  token: string,
+  voterId: number,
+  electionId: number = getActiveElectionId()
+): Promise<void> => {
+  await apiRequest(
+    `/admin/elections/${electionId}/voters/${voterId}/unblacklist`,
+    {
+      method: 'POST',
+      token,
+    }
+  )
 }
