@@ -27,6 +27,7 @@ export type AuthTokens = {
 }
 
 export type AuthResponse = AuthTokens & { user: AuthUser }
+export type ResetPasswordResponse = { message: string }
 
 // Registration Response Types (API v2.0)
 export type StudentRegistrationResponse = {
@@ -100,6 +101,12 @@ export type CheckAvailabilityResponse = {
 
 export const loginUser = (username: string, password: string) =>
   apiRequest<AuthResponse>('/auth/login', { method: 'POST', body: { username, password } })
+
+export const resetPassword = (identifier: string, newPassword: string) =>
+  apiRequest<ResetPasswordResponse>('/auth/reset-password', {
+    method: 'POST',
+    body: { identifier, new_password: newPassword },
+  })
 
 // API v2.0 Registration Functions
 export const registerStudent = (payload: {

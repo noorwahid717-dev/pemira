@@ -37,6 +37,15 @@ const LoginMahasiswa = (): JSX.Element => {
     setError(null)
   }
 
+  const resolveLoginError = (err: any) => {
+    const fallback = 'NIM/NIDN/NIP atau password salah.'
+    const message = err?.message
+    if (!message) return fallback
+    const lowered = String(message).toLowerCase()
+    if (lowered.includes('username')) return fallback
+    return message
+  }
+
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     setLoading(true)
@@ -59,7 +68,7 @@ const LoginMahasiswa = (): JSX.Element => {
         navigate('/dashboard')
       })
       .catch((err: any) => {
-        setError(err?.message ?? 'Login gagal. Periksa username/password.')
+        setError(resolveLoginError(err))
         setShake(true)
         setTimeout(() => setShake(false), 300)
       })
@@ -115,7 +124,7 @@ const LoginMahasiswa = (): JSX.Element => {
               </button>
               <div className="auth-links">
                 <a href="/register">Belum punya akun? Daftar sekarang</a>
-                <a href="/panduan">Lupa password? Hubungi panitia PEMIRA</a>
+                <a href="/reset-password">Lupa password? Reset di sini</a>
               </div>
             </form>
           </div>

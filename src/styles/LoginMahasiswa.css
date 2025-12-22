@@ -299,6 +299,12 @@
   gap: var(--space-2);
 }
 
+.field-error {
+  color: #c53030;
+  font-size: 0.85rem;
+  margin: 0.35rem 0 0;
+}
+
 .field-label {
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);

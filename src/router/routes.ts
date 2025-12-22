@@ -11,6 +11,7 @@ const DaftarKandidat = lazyPage(() => import('../pages/DaftarKandidat'))
 const DemoAccounts = lazyPage(() => import('../pages/DemoAccounts'))
 const DetailKandidat = lazyPage(() => import('../pages/DetailKandidat'))
 const LoginMahasiswa = lazyPage(() => import('../pages/LoginMahasiswa'))
+const ResetPassword = lazyPage(() => import('../pages/ResetPassword'))
 const RegisterNew = lazyPage(() => import('../pages/RegisterNew'))
 const TPSScanner = lazyPage(() => import('../pages/TPSScanner'))
 const TPSSuccess = lazyPage(() => import('../pages/TPSSuccess'))
@@ -69,6 +70,7 @@ export const appRoutes: RouteDefinition[] = [
   { id: 'panduan', path: '/panduan', Component: Panduan },
   { id: 'demo-accounts', path: '/demo', Component: DemoAccounts, publicOnly: true },
   { id: 'login', path: '/login', Component: LoginMahasiswa, publicOnly: true },
+  { id: 'reset-password', path: '/reset-password', Component: ResetPassword, publicOnly: true },
   { id: 'register', path: '/register', Component: RegisterNew, publicOnly: true },
   { id: 'admin-login', path: '/admin/login', Component: AdminLogin },
   { id: 'dashboard', path: '/dashboard', Component: DashboardPemilihHiFi, requiresAuth: true },
