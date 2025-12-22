@@ -15,6 +15,7 @@ import '../styles/AdminDPT.css'
 const statusSuaraLabels: Record<VoterStatus, string> = {
   belum: 'Belum',
   sudah: 'Sudah',
+  blacklist: 'Blacklist',
 }
 
 const akademikLabels: Record<AcademicStatus, string> = {
@@ -70,7 +71,17 @@ const AdminDPTList = (): JSX.Element => {
       const matchesSearch = [voter.nim, voter.nama, voter.prodi].some((value) => value.toLowerCase().includes(filters.search.toLowerCase()))
       const matchesFakultas = filters.fakultas === 'all' || voter.fakultas === filters.fakultas
       const matchesAngkatan = filters.angkatan === 'all' || voter.angkatan === filters.angkatan
-      const matchesStatus = filters.statusSuara === 'all' || voter.statusSuara === filters.statusSuara
+      
+      // Handle blacklist filter separately
+      let matchesStatus = true
+      if (filters.statusSuara === 'blacklist') {
+        matchesStatus = voter.isBlacklisted === true
+      } else if (filters.statusSuara !== 'all') {
+        matchesStatus = voter.statusSuara === filters.statusSuara && !voter.isBlacklisted
+      } else {
+        matchesStatus = true
+      }
+      
       const matchesAkademik = filters.akademik === 'all' || voter.akademik === filters.akademik
       const matchesTipe = filters.tipe === 'all' || voter.tipe === filters.tipe
       const metode = (voter.metodeVoting ?? '').toString().toLowerCase()
@@ -396,6 +407,7 @@ const AdminDPTList = (): JSX.Element => {
             <option value="all">Status Suara: Semua</option>
             <option value="belum">Belum Memilih</option>
             <option value="sudah">Sudah Memilih</option>
+            <option value="blacklist">Blacklist</option>
           </select>
           <select value={filters.akademik} onChange={(event) => setFilters((prev) => ({ ...prev, akademik: event.target.value as AcademicStatus | 'all' }))}>
             <option value="all">Status Akademik: Semua</option>
@@ -467,7 +479,7 @@ const AdminDPTList = (): JSX.Element => {
               )}
               {filteredVoters.map((voter, idx) => {
                 const rowActions = [
-                  voter.electionVoterStatus !== 'BLOCKED'
+                  !voter.isBlacklisted
                     ? {
                       key: 'blacklist',
                       label: 'Blacklist',
@@ -531,7 +543,14 @@ const AdminDPTList = (): JSX.Element => {
                     </td>
 
                     <td>
-                      <span className={`status-chip ${voter.statusSuara}`}>{statusSuaraLabels[voter.statusSuara]}</span>
+                      {voter.isBlacklisted ? (
+                        <span className="status-chip blacklist">
+                          <LucideIcon name="ban" size={14} style={{ marginRight: '4px' }} />
+                          Blacklist
+                        </span>
+                      ) : (
+                        <span className={`status-chip ${voter.statusSuara}`}>{statusSuaraLabels[voter.statusSuara]}</span>
+                      )}
                     </td>
                     <td>
                       <div className="stacked-cell">

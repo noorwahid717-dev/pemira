@@ -1,4 +1,4 @@
-export type VoterStatus = 'belum' | 'sudah'
+export type VoterStatus = 'belum' | 'sudah' | 'blacklist'
 
 export type AcademicStatus = 'aktif' | 'cuti' | 'nonaktif'
 
@@ -37,6 +37,7 @@ export type DPTEntry = {
   hasVoted?: boolean
   // New API fields
   electionVoterStatus?: ElectionVoterStatus
+  isBlacklisted?: boolean // ← BARU
   checkedInAt?: string | null
   votedAt?: string | null
   updatedAt?: string

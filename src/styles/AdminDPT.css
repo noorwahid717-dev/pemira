@@ -276,6 +276,15 @@
   color: var(--admin-color-success-500, #16a34a);
 }
 
+.status-chip.blacklist {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #ef4444;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+}
+
 /* Election Voter Status Chips */
 .status-chip.status-pending {
   background: #fef3c7;
