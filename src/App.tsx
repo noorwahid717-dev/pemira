@@ -12,6 +12,7 @@ import { AdminAuthProvider } from './hooks/useAdminAuth'
 import { ToastProvider } from './components/Toast'
 import { PopupProvider } from './components/Popup'
 import { ActiveElectionProvider } from './hooks/useActiveElection'
+import LoadingScreen from './components/LoadingScreen'
 import './App.css'
 
 const App = (): React.JSX.Element => (
@@ -24,7 +25,7 @@ const App = (): React.JSX.Element => (
               <TPSAdminProvider>
                 <DPTAdminProvider>
                   <BrowserRouter>
-                    <React.Suspense fallback={<div className="app-loading">Memuat halaman...</div>}>
+                    <React.Suspense fallback={<LoadingScreen />}>
                       <Routes>
                         {appRoutes.map(({ id, path, Component, requiresAuth, requiresAdminAuth, publicOnly }) => {
                           let element: React.JSX.Element = <Component />

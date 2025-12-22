@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import PemiraLogos from '../components/shared/PemiraLogos'
 import { useVotingSession } from '../hooks/useVotingSession'
 import { loginUser } from '../services/auth'
+import LoadingScreen from '../components/LoadingScreen'
 import '../styles/LoginMahasiswa.css'
 
 type LoginFormData = {
@@ -137,6 +138,12 @@ const LoginMahasiswa = (): JSX.Element => {
           </details>
         </div>
       </main>
+
+      {loading && (
+        <div className="app-loading-overlay">
+          <LoadingScreen message="Memproses login..." inline />
+        </div>
+      )}
     </div>
   )
 }

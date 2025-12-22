@@ -105,6 +105,7 @@ const VoterCandidates = (): JSX.Element => {
                       src={candidate.foto} 
                       alt={candidate.nama}
                       className="photo-img"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="photo-placeholder">

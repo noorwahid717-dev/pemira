@@ -19,6 +19,7 @@ import {
 } from '../services/meta'
 import { fetchCurrentElection } from '../services/publicElection'
 import { useVotingSession } from '../hooks/useVotingSession'
+import LoadingScreen from '../components/LoadingScreen'
 import type { ApiError } from '../utils/apiClient'
 import '../styles/LoginMahasiswa.css'
 
@@ -39,6 +40,7 @@ const RegisterNew = () => {
   const [voterType, setVoterType] = useState<VoterType>('student')
   const [agree, setAgree] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
@@ -89,54 +91,96 @@ const RegisterNew = () => {
 
   // Load master data on mount
   useEffect(() => {
-    // Fetch election info to check available voting modes and status
-    fetchCurrentElection()
-      .then((election) => {
-        const onlineAvailable = election.online_enabled
-        const tpsAvailable = election.tps_enabled
-        setOnlineEnabled(onlineAvailable)
-        setTpsEnabled(tpsAvailable)
-        const status = election.status || ''
-        setElectionStatus(status)
-        
-        // Set default voter type to lecturer if voting is open
-        if (status === 'VOTING_OPEN') {
-          setVoterType('lecturer')
-        }
-        
-        // Set default voting mode based on availability
-        if (!onlineAvailable && tpsAvailable) {
-          setVotingMode('TPS')
-        } else if (onlineAvailable && !tpsAvailable) {
-          setVotingMode('ONLINE')
-        }
-      })
-      .catch(() => {
-        // Fallback to both enabled if fetch fails
-        setOnlineEnabled(true)
-        setTpsEnabled(true)
-        setElectionStatus('')
-      })
-    
-    fetchFacultiesPrograms()
-      .then((res) => setMetaOptions(res.faculties ?? []))
-      .catch(() => setMetaOptions([]))
-    
-    fetchLecturerUnits()
-      .then((res) => setLecturerUnits(res.data.map(u => u.name)))
-      .catch(() => setLecturerUnits([]))
-    
-    fetchLecturerPositions()
-      .then((res) => setLecturerPositions(res.data.map(p => p.name)))
-      .catch(() => setLecturerPositions([]))
-    
-    fetchStaffUnits()
-      .then((res) => setStaffUnits(res.data.map(u => u.name)))
-      .catch(() => setStaffUnits([]))
-    
-    fetchStaffPositions()
-      .then((res) => setStaffPositions(res.data.map(p => p.name)))
-      .catch(() => setStaffPositions([]))
+    let cancelled = false
+
+    const loadMeta = async () => {
+      setInitialLoading(true)
+
+      const tasks = [
+        fetchCurrentElection()
+          .then((election) => {
+            if (cancelled) return
+            const onlineAvailable = election.online_enabled
+            const tpsAvailable = election.tps_enabled
+            setOnlineEnabled(onlineAvailable)
+            setTpsEnabled(tpsAvailable)
+            const status = election.status || ''
+            setElectionStatus(status)
+
+            if (status === 'VOTING_OPEN') {
+              setVoterType('lecturer')
+            }
+
+            if (!onlineAvailable && tpsAvailable) {
+              setVotingMode('TPS')
+            } else if (onlineAvailable && !tpsAvailable) {
+              setVotingMode('ONLINE')
+            }
+          })
+          .catch(() => {
+            if (cancelled) return
+            setOnlineEnabled(true)
+            setTpsEnabled(true)
+            setElectionStatus('')
+          }),
+        fetchFacultiesPrograms()
+          .then((res) => {
+            if (cancelled) return
+            setMetaOptions(res.faculties ?? [])
+          })
+          .catch(() => {
+            if (cancelled) return
+            setMetaOptions([])
+          }),
+        fetchLecturerUnits()
+          .then((res) => {
+            if (cancelled) return
+            setLecturerUnits(res.data.map((u) => u.name))
+          })
+          .catch(() => {
+            if (cancelled) return
+            setLecturerUnits([])
+          }),
+        fetchLecturerPositions()
+          .then((res) => {
+            if (cancelled) return
+            setLecturerPositions(res.data.map((p) => p.name))
+          })
+          .catch(() => {
+            if (cancelled) return
+            setLecturerPositions([])
+          }),
+        fetchStaffUnits()
+          .then((res) => {
+            if (cancelled) return
+            setStaffUnits(res.data.map((u) => u.name))
+          })
+          .catch(() => {
+            if (cancelled) return
+            setStaffUnits([])
+          }),
+        fetchStaffPositions()
+          .then((res) => {
+            if (cancelled) return
+            setStaffPositions(res.data.map((p) => p.name))
+          })
+          .catch(() => {
+            if (cancelled) return
+            setStaffPositions([])
+          }),
+      ]
+
+      await Promise.allSettled(tasks)
+      if (!cancelled) {
+        setInitialLoading(false)
+      }
+    }
+
+    void loadMeta()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // Reset form when voter type changes
@@ -285,6 +329,14 @@ const RegisterNew = () => {
       </button>
     </div>
   )
+
+  if (initialLoading) {
+    return (
+      <div className="login-page premium-page">
+        <LoadingScreen fullScreen message="Memuat data registrasi..." />
+      </div>
+    )
+  }
 
   if (step === 'success') {
     return (
@@ -709,6 +761,12 @@ const RegisterNew = () => {
           </div>
         </div>
       </main>
+
+      {loading && (
+        <div className="app-loading-overlay">
+          <LoadingScreen message="Memproses pendaftaran..." inline />
+        </div>
+      )}
     </div>
   )
 }

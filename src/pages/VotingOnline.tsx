@@ -10,6 +10,7 @@ import type { Candidate, VotingReceipt } from '../types/voting'
 import DashboardHeader from '../components/dashboard/DashboardHeader'
 import DashboardFooter from '../components/dashboard/DashboardFooter'
 import { fetchPublicCandidateDetail, fetchPublicCandidates } from '../services/publicCandidates'
+import LoadingScreen from '../components/LoadingScreen'
 import '../styles/VotingOnline.css'
 import '../styles/DashboardPemilihHiFi.css' // Import Dashboard styles for layout
 
@@ -314,7 +315,11 @@ const VotingOnline = (): JSX.Element => {
   }
 
   if (dashboardData.loading) {
-    return <div className="p-4 text-center">Memuat...</div>
+    return (
+      <div className="dashboard-pemilih-page">
+        <LoadingScreen fullScreen message="Memuat data..." />
+      </div>
+    )
   }
 
   // If not in voting stage (and not just finished voting), show message
@@ -399,8 +404,9 @@ const VotingOnline = (): JSX.Element => {
                 </div>
 
                 {loadingCandidates ? (
-                  <div className="loading-candidates" style={{ textAlign: 'center', padding: '2rem' }}>
-                    Memuat daftar kandiat...
+                  <div className="loading-candidates">
+                    <div className="app-loading-spinner" />
+                    <p>Memuat daftar kandidat...</p>
                   </div>
                 ) : (
                   <div className="kandidat-voting-grid">
@@ -416,6 +422,7 @@ const VotingOnline = (): JSX.Element => {
                             <img
                               src={kandidat.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(kandidat.nama)}&size=300&background=random`}
                               alt={kandidat.nama}
+                              loading="lazy"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(kandidat.nama)}&size=300&background=random`
                               }}

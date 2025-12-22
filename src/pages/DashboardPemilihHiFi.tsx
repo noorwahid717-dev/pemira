@@ -7,6 +7,7 @@ import { QRCodeSVG } from 'qrcode.react'
 
 import DashboardHeader from '../components/dashboard/DashboardHeader'
 import DashboardFooter from '../components/dashboard/DashboardFooter'
+import LoadingScreen from '../components/LoadingScreen'
 import '../styles/DashboardPemilihHiFi.css'
 
 type VoterMode = 'ONLINE' | 'OFFLINE'
@@ -595,8 +596,8 @@ const DashboardPemilihHiFi = (): JSX.Element => {
 
   if (dashboardData.loading) {
     return (
-      <div className="dashboard-pemilih-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>Memuat data...</div>
+      <div className="dashboard-pemilih-page">
+        <LoadingScreen fullScreen message="Memuat data..." />
       </div>
     )
   }
