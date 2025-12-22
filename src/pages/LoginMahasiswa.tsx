@@ -14,8 +14,6 @@ type LoginFormData = {
 const LoginMahasiswa = (): JSX.Element => {
   const navigate = useNavigate()
   const { setSession } = useVotingSession()
-  const headerRef = useRef<HTMLDivElement | null>(null)
-  const cardRef = useRef<HTMLDivElement | null>(null)
   const infoRef = useRef<HTMLDivElement | null>(null)
 
   const [formData, setFormData] = useState<LoginFormData>({
@@ -26,12 +24,11 @@ const LoginMahasiswa = (): JSX.Element => {
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [shake, setShake] = useState(false)
+  const [reveal, setReveal] = useState(false)
 
   useEffect(() => {
-    const header = headerRef.current
-    const card = cardRef.current
-    if (header) header.classList.add('reveal-in')
-    if (card) card.classList.add('reveal-card')
+    const raf = window.requestAnimationFrame(() => setReveal(true))
+    return () => window.cancelAnimationFrame(raf)
   }, [])
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,7 +68,7 @@ const LoginMahasiswa = (): JSX.Element => {
 
   return (
     <div className="login-page premium-page">
-      <header className="login-topbar new-appbar" ref={headerRef}>
+      <header className={`login-topbar new-appbar ${reveal ? 'reveal-in' : ''}`}>
         <div className="topbar-inner">
           <div className="topbar-left">
             <PemiraLogos size="lg" title="PEMIRA UNIWA 2025" className="auth-logo-large" />
@@ -87,7 +84,7 @@ const LoginMahasiswa = (): JSX.Element => {
             <p className="heading-sub">Gunakan akun PEMIRA atau akun kampus Anda.</p>
           </div>
 
-          <div className={`login-card premium-card ${shake ? 'shake' : ''}`} ref={cardRef}>
+          <div className={`login-card premium-card ${reveal ? 'reveal-card' : ''} ${shake ? 'shake' : ''}`}>
             <form onSubmit={handleSubmit} className="login-form">
               <label className="form-field">
                 <span className="field-label">NIM/NIDN/NIP / Email UNIWA</span>
